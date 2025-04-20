@@ -1,0 +1,46 @@
+{
+  "name": "@seriouslag/actual-auto-sync",
+  "description": "A background service that automatically syncs your Actual Budget accounts on a scheduled basis.",
+  "version": "0.0.1",
+  "main": "src/index.ts",
+  "packageManager": "pnpm@10.8.1",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "node --loader ts-node/esm src/index.ts",
+    "test": "vitest",
+    "build": "tsc"
+  },
+  "keywords": [
+    "actual",
+    "budget",
+    "bank",
+    "sync",
+    "auto",
+    "docker"
+  ],
+  "dependencies": {
+    "@actual-app/api": "^25.4.0",
+    "@actual-app/crdt": "^2.1.0",
+    "@t3-oss/env-core": "^0.12.0",
+    "better-sqlite3": "^11.9.1",
+    "cronstrue": "^2.59.0",
+    "dotenv": "^16.5.0",
+    "fastify": "^5.3.2",
+    "google-protobuf": "^3.21.4",
+    "murmurhash": "^2.0.1",
+    "node-cron": "^3.0.3",
+    "pino": "^9.6.0",
+    "timers": "^0.1.1",
+    "uuid": "^11.1.0",
+    "zlib": "^1.0.5",
+    "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "@types/node-cron": "^3.0.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  }
+}

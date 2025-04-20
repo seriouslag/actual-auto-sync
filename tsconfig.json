@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "moduleResolution": "nodenext",
+    "skipLibCheck": true,
+    "typeRoots": [
+      "./node_modules/@types",
+      "./node_modules/@actual-app/api/@types"
+    ],
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "vitest.config.mts"],
+  "exclude": ["node_modules", "dist"]
+}

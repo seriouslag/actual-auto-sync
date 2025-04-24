@@ -19,6 +19,7 @@ The service requires the following environment variables:
 - `CRON_SCHEDULE`: Cron expression for scheduling syncs (default: `0 1 * * *` - daily at 1am)
 - `LOG_LEVEL`: Logging level (default: `info`)
 - `ACTUAL_BUDGET_SYNC_IDS`: Comma-separated list of budget IDs to sync (e.g. "1cf9fbf9-97b7-4647-8128-8afec1b1fbe2,030d7094-aae8-4d70-aeee-9e29d30d9b88")
+- `ENABLE_HISTORY`: Enable history tracking (default: `false`)
 
 You can find you budget sync IDs in the Actual Budget app > _Selected Budget_ > Settings > Advanced Settings > Sync ID.
 
@@ -32,6 +33,7 @@ docker run -d \
   -e CRON_SCHEDULE="0 1 * * *" \
   -e LOG_LEVEL="info" \
   -e ACTUAL_BUDGET_SYNC_IDS="1cf9fbf9-97b7-4647-8128-8afec1b1fbe2" \
+  -e ENABLE_HISTORY="true" \
   seriouslag/actual-auto-sync
 ```
 
@@ -59,6 +61,7 @@ docker run -d \
    CRON_SCHEDULE=0 1 * * *
    LOG_LEVEL=info
    ACTUAL_BUDGET_SYNC_IDS=1cf9fbf9-97b7-4647-8128-8afec1b1fbe2
+   ENABLE_HISTORY=true
    ```
 
 3. Start the service:
@@ -72,6 +75,12 @@ docker run -d \
 docker build -t actual-auto-sync .
 docker run -d \
   -e ACTUAL_DATA_DIR=./data \
+  -e ACTUAL_SERVER_URL="your-server-url" \
+  -e ACTUAL_SERVER_PASSWORD="your-password" \
+  -e CRON_SCHEDULE="0 1 * * *" \
+  -e LOG_LEVEL="info" \
+  -e ACTUAL_BUDGET_SYNC_IDS="1cf9fbf9-97b7-4647-8128-8afec1b1fbe2" \
+  -e ENABLE_HISTORY="true" \
   actual-auto-sync
 ```
 

@@ -11,7 +11,8 @@
       "./node_modules/@types",
       "./node_modules/@actual-app/api/@types"
     ],
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {}
   },
   "include": ["src/**/*", "vitest.config.mts"],
   "exclude": ["node_modules", "dist"]

@@ -175,11 +175,14 @@ function setupCronJob(
       try {
         syncAllAccounts(db, syncIds);
       } catch (err) {
-        logger.error(err, "Error syncing all accounts");
+        logger.error(
+          err,
+          "Error syncing all accounts. Will retry with next cron job."
+        );
       }
     },
     {
-      runOnInit: true,
+      noOverlap: true,
     }
   );
   logger.info("Sync scheduled successfully.");

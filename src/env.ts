@@ -31,6 +31,9 @@ export const env = createEnv({
       .optional()
       .default("info"),
     ACTUAL_BUDGET_SYNC_IDS: budgetIdSchema,
+    ENABLE_HISTORY: z
+      .preprocess((val) => val === "true", z.boolean())
+      .default(false),
   },
 
   /**

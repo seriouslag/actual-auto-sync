@@ -1,10 +1,10 @@
 # @seriouslag/actual-auto-sync
 
-A background service that automatically syncs your Actual Budget accounts on a scheduled basis.
+A background service that automatically runs bank sync on your Actual Budget accounts on a scheduled basis.
 
 ## Features
 
-- Automatically syncs all your Actual Budget accounts on a configurable schedule
+- Automatically runs bank sync on all your Actual Budget accounts on a configurable schedule
 - Uses the official Actual Budget API for reliable synchronization
 - Configurable logging levels for monitoring and debugging
 - Runs in a Docker container for easy deployment

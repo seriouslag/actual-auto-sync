@@ -14,6 +14,8 @@ import cron from "node-cron";
 import { env } from "./env.js";
 import { logger } from "./logger.js";
 
+const ACTUAL_DATA_DIR = "./data";
+
 function formatCronSchedule(schedule: string) {
   return cronstrue.toString(schedule).toLowerCase();
 }
@@ -31,12 +33,12 @@ async function syncAllAccounts() {
 const start = async () => {
   logger.info("Starting service...");
   try {
-    logger.info(`Creating data directory ${env.ACTUAL_DATA_DIR}`);
-    await mkdir(env.ACTUAL_DATA_DIR, { recursive: true });
+    logger.info(`Creating data directory ${ACTUAL_DATA_DIR}`);
+    await mkdir(ACTUAL_DATA_DIR, { recursive: true });
     logger.info("Data directory created successfully.");
     logger.info("Initializing Actual API...");
     await init({
-      dataDir: env.ACTUAL_DATA_DIR,
+      dataDir: ACTUAL_DATA_DIR,
       serverURL: env.ACTUAL_SERVER_URL,
       password: env.ACTUAL_SERVER_PASSWORD,
     });
@@ -45,46 +47,54 @@ const start = async () => {
     const formattedSchedule = formatCronSchedule(env.CRON_SCHEDULE);
     logger.info(`Scheduling sync to run ${formattedSchedule}...`);
 
-    const syncIdToBudgetId = await getSyncIdMaps(env.ACTUAL_DATA_DIR);
-    const tasks = [];
-    for (const [syncId, budgetId] of Object.entries(syncIdToBudgetId)) {
-      // If the sync id is not in the ACTUAL_BUDGET_SYNC_IDS array, skip it
-      if (!(syncId in env.ACTUAL_BUDGET_SYNC_IDS)) {
-        continue;
-      }
-      logger.info(`Sync id: ${syncId}, Budget id: ${budgetId}`);
-      tasks.push(async () => {
-        const budgetId = syncIdToBudgetId[syncId];
-        try {
-          logger.info(`Loading budget ${budgetId}...`);
-          await loadBudget(budgetId);
-          logger.info(`Budget ${budgetId} loaded successfully.`);
-        } catch (err) {
-          logger.error(err, `Error loading budget ${budgetId}`);
+    const syncIdToBudgetId = await getSyncIdMaps(ACTUAL_DATA_DIR);
+
+    const tasks = Object.entries(syncIdToBudgetId).map(
+      async ([syncId, budgetId]) => {
+        // If the sync id is not in the ACTUAL_BUDGET_SYNC_IDS array, skip it
+        if (!(syncId in env.ACTUAL_BUDGET_SYNC_IDS)) {
+          logger.info(
+            `Sync id ${syncId} not in ACTUAL_BUDGET_SYNC_IDS, skipping...`
+          );
+          return;
         }
-      });
-    }
-    for (const budgetId of env.ACTUAL_BUDGET_SYNC_IDS) {
-      tasks.push(
-        (async () => {
-          try {
-            logger.info(`Downloading budget ${budgetId}...`);
+        logger.info(`Sync id: ${syncId}, Budget id: ${budgetId}`);
+        const syncBudgetId = syncIdToBudgetId[syncId];
+        try {
+          logger.info(`Loading budget ${syncBudgetId}...`);
+          await loadBudget(syncBudgetId);
+          logger.info(`Budget ${syncBudgetId} loaded successfully.`);
+        } catch (err) {
+          logger.error(err, `Error loading budget ${syncBudgetId}`);
+        }
+      }
+    );
+    const syncTasks = env.ACTUAL_BUDGET_SYNC_IDS.map(
+      async (budgetId, index) => {
+        try {
+          logger.info(`Downloading budget ${budgetId}...`);
+          const password = env.ENCRYPTION_PASSWORDS[index];
+          if (password) {
+            await downloadBudget(budgetId, { password });
+          } else {
             await downloadBudget(budgetId);
-            logger.info(`Budget ${budgetId} downloaded successfully.`);
-          } catch (err) {
-            logger.error(err, `Error downloading budget ${budgetId}`);
           }
-        })()
-      );
-    }
-    await Promise.all(tasks);
-    cron.schedule(env.CRON_SCHEDULE, () => {
+          logger.info(`Budget ${budgetId} downloaded successfully.`);
+        } catch (err) {
+          logger.error(err, `Error downloading budget ${budgetId}`);
+        }
+      }
+    );
+    await Promise.all([...tasks, ...syncTasks]);
+    const cronJob = cron.schedule(env.CRON_SCHEDULE, () => {
       logger.info(
         `Running scheduled cron job, the schedule is to run ${formattedSchedule}.`
       );
-      syncAllAccounts();
+      return syncAllAccounts();
     });
     logger.info("Sync scheduled successfully.");
+
+    return cronJob;
   } catch (err) {
     logger.error(err, "Error starting the service. Shutting down...");
     await shutdown();
@@ -93,7 +103,13 @@ const start = async () => {
   }
 };
 
-start();
+start().catch((err) => {
+  logger.error(err, "Error starting the service. Shutting down...");
+  shutdown().then(() => {
+    logger.info("Shutdown complete. Exiting...");
+    process.exit(1);
+  });
+});
 
 async function listSubDirectories(directory: string) {
   const subDirectories = await readdir(directory, { withFileTypes: true });

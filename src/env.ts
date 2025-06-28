@@ -1,7 +1,7 @@
 import { createEnv } from "@t3-oss/env-core";
 import { config } from "dotenv";
 import { pino } from "pino";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const logger = pino({
   level: "info",
@@ -19,9 +19,16 @@ const budgetIdSchema = z
   .transform((value) => value.split(","))
   .pipe(z.string().array());
 
+const encryptionPasswordSchema = z
+  .string()
+  .default("")
+  .optional()
+  .transform((value) => value?.split(","))
+  .pipe(z.string().array().optional())
+  .default([]);
+
 export const env = createEnv({
   server: {
-    ACTUAL_DATA_DIR: z.string().min(1).default("./data"),
     ACTUAL_SERVER_URL: z.string().min(1),
     ACTUAL_SERVER_PASSWORD: z.string().min(1),
     // default to once a day at 1am
@@ -31,6 +38,7 @@ export const env = createEnv({
       .optional()
       .default("info"),
     ACTUAL_BUDGET_SYNC_IDS: budgetIdSchema,
+    ENCRYPTION_PASSWORDS: encryptionPasswordSchema,
   },
 
   /**

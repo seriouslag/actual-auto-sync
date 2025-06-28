@@ -48,6 +48,10 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      - name: Generate commit hash
+        id: commit_hash
+        run: echo "hash=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -62,4 +66,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: seriouslag/actual-auto-sync:latest
+          tags: |
+            seriouslag/actual-auto-sync:latest
+            seriouslag/actual-auto-sync:${{ steps.commit_hash.outputs.hash }}

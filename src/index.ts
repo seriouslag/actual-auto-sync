@@ -16,6 +16,16 @@ import { logger } from "./logger.js";
 
 const ACTUAL_DATA_DIR = "./data";
 
+// Global error handlers to catch uncaught exceptions
+process.on("uncaughtException", (error) => {
+  logger.error(error, "Uncaught Exception occurred");
+});
+
+// These are needed because @actual-app/api throws an unhandled rejection that is not caught by try/catch
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error(reason, "Unhandled Rejection at Promise", { promise });
+});
+
 function formatCronSchedule(schedule: string) {
   return cronstrue.toString(schedule).toLowerCase();
 }
@@ -86,17 +96,18 @@ const start = async () => {
       }
     );
     await Promise.all([...tasks, ...syncTasks]);
-    const cronJob2 = new CronJob("* * * * *", async () => {
-      logger.info(`Running scheduled cron job`);
-    });
-    cronJob2.start();
     const cronJob = new CronJob(
       env.CRON_SCHEDULE,
       async () => {
-        logger.info(
-          `Running scheduled cron job, the schedule is to run ${formattedSchedule}.`
-        );
-        await syncAllAccounts();
+        try {
+          logger.info(
+            `Running scheduled cron job, the schedule is to run ${formattedSchedule}.`
+          );
+          await syncAllAccounts();
+        } catch (err) {
+          logger.error(err, "Error in scheduled cron job - continuing to run");
+          // Don't re-throw here to prevent the cron job from stopping
+        }
       },
       null,
       true,

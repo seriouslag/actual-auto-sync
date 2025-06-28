@@ -9,7 +9,7 @@ import {
   loadBudget,
 } from "@actual-app/api";
 import cronstrue from "cronstrue";
-import cron from "node-cron";
+import { CronJob } from "cron";
 
 import { env } from "./env.js";
 import { logger } from "./logger.js";
@@ -86,12 +86,22 @@ const start = async () => {
       }
     );
     await Promise.all([...tasks, ...syncTasks]);
-    const cronJob = cron.schedule(env.CRON_SCHEDULE, () => {
-      logger.info(
-        `Running scheduled cron job, the schedule is to run ${formattedSchedule}.`
-      );
-      return syncAllAccounts();
+    const cronJob2 = new CronJob("* * * * *", async () => {
+      logger.info(`Running scheduled cron job`);
     });
+    cronJob2.start();
+    const cronJob = new CronJob(
+      env.CRON_SCHEDULE,
+      async () => {
+        logger.info(
+          `Running scheduled cron job, the schedule is to run ${formattedSchedule}.`
+        );
+        await syncAllAccounts();
+      },
+      null,
+      true,
+      env.TIMEZONE
+    );
     logger.info("Sync scheduled successfully.");
 
     return cronJob;

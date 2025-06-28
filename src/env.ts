@@ -39,6 +39,7 @@ export const env = createEnv({
       .default("info"),
     ACTUAL_BUDGET_SYNC_IDS: budgetIdSchema,
     ENCRYPTION_PASSWORDS: encryptionPasswordSchema,
+    TIMEZONE: z.string().default("UTC"),
   },
 
   /**

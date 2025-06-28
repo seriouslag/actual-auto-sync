@@ -19,11 +19,14 @@ COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/dist /app/dist
 
 # Environment variables
-ENV ACTUAL_DATA_DIR=./data
 ENV ACTUAL_SERVER_URL=""
 ENV ACTUAL_SERVER_PASSWORD=""
-ENV CRON_SCHEDULE="0 1 * * *"
+# once a day at 1am in UTC
+ENV CRON_SCHEDULE="0 1 * * *" 
 ENV LOG_LEVEL="info"
+ENV ACTUAL_BUDGET_SYNC_IDS=""
+ENV ENCRYPTION_PASSWORDS=""
+ENV TIMEZONE="UTC"
 
 # Start the application
 CMD ["pnpm", "start"]

@@ -29,6 +29,9 @@ importers:
       dotenv:
         specifier: ^17.0.0
         version: 17.0.0
+      luxon:
+        specifier: ^3.6.1
+        version: 3.6.1
       pino:
         specifier: ^9.7.0
         version: 9.7.0
@@ -39,6 +42,9 @@ importers:
         specifier: ^3.25.67
         version: 3.25.67
     devDependencies:
+      '@types/luxon':
+        specifier: ^3.6.2
+        version: 3.6.2
       '@types/node':
         specifier: ^22.14.1
         version: 22.15.34

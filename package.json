@@ -24,14 +24,16 @@
     "@actual-app/crdt": "^2.1.0",
     "@t3-oss/env-core": "^0.13.8",
     "better-sqlite3": "^12.1.1",
+    "cron": "^4.3.1",
     "cronstrue": "^2.61.0",
     "dotenv": "^17.0.0",
-    "cron": "^4.3.1",
+    "luxon": "^3.6.1",
     "pino": "^9.7.0",
     "uuid": "^11.1.0",
     "zod": "^3.25.67"
   },
   "devDependencies": {
+    "@types/luxon": "^3.6.2",
     "@types/node": "^22.14.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",

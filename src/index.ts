@@ -10,6 +10,7 @@ import {
 } from "@actual-app/api";
 import cronstrue from "cronstrue";
 import { CronJob } from "cron";
+import { DateTime } from "luxon";
 
 import { env } from "./env.js";
 import { logger } from "./logger.js";
@@ -44,7 +45,7 @@ async function syncAllAccounts() {
   }
 }
 
-const start = async () => {
+const sync = async () => {
   logger.info("Starting service...");
   try {
     logger.info(`Creating data directory ${ACTUAL_DATA_DIR}`);
@@ -115,26 +116,34 @@ const start = async () => {
     logger.info("Shutdown complete.");
   }
 };
-const cronJob = new CronJob(
-  env.CRON_SCHEDULE,
-  async () => {
-    await start().catch((err) => {
-      logger.error(err, "Error starting the service. Shutting down...");
+const cronJob = CronJob.from({
+  cronTime: env.CRON_SCHEDULE,
+  onTick: async (onCompleteCallback) => {
+    await sync().catch((err) => {
+      logger.error(err, "Error running sync. Shutting down...");
       shutdown().then(() => {
         logger.info("Shutdown complete.");
       });
     });
+    await onCompleteCallback();
   },
-  () => {
-    logger.info(`Cron job completed. Next run is in ${cronJob.nextDate()}.`);
+  onComplete: () => {
+    logger.info(
+      `Cron job completed. Next run is in ${cronJob
+        .nextDate()
+        .toLocaleString(DateTime.DATETIME_FULL)}`
+    );
   },
-  true,
-  env.TIMEZONE
-);
+  start: true,
+  timeZone: env.TIMEZONE,
+  runOnInit: env.RUN_ON_START,
+});
 logger.info(
   `Cron job started. The schedule is to run ${formatCronSchedule(
     env.CRON_SCHEDULE
-  )}. Next run is in ${cronJob.nextDate()}.`
+  )}. Next run is in ${cronJob
+    .nextDate()
+    .toLocaleString(DateTime.DATETIME_FULL)}.`
 );
 
 async function listSubDirectories(directory: string) {

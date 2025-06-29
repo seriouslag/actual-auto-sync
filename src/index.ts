@@ -23,7 +23,11 @@ process.on("uncaughtException", (error) => {
 
 // These are needed because @actual-app/api throws an unhandled rejection that is not caught by try/catch
 process.on("unhandledRejection", (reason, promise) => {
-  logger.error(reason, "Unhandled Rejection at Promise", { promise });
+  logger.error(
+    reason,
+    "Unhandled Rejection at Promise; This may be okay to ignore.",
+    { promise }
+  );
 });
 
 function formatCronSchedule(schedule: string) {
@@ -96,41 +100,42 @@ const start = async () => {
       }
     );
     await Promise.all([...tasks, ...syncTasks]);
-    const cronJob = new CronJob(
-      env.CRON_SCHEDULE,
-      async () => {
-        try {
-          logger.info(
-            `Running scheduled cron job, the schedule is to run ${formattedSchedule}.`
-          );
-          await syncAllAccounts();
-        } catch (err) {
-          logger.error(err, "Error in scheduled cron job - continuing to run");
-          // Don't re-throw here to prevent the cron job from stopping
-        }
-      },
-      null,
-      true,
-      env.TIMEZONE
-    );
-    logger.info("Sync scheduled successfully.");
-
-    return cronJob;
+    try {
+      logger.info("Syncing accounts...");
+      await syncAllAccounts();
+      logger.info("Accounts synced successfully.");
+    } catch (err) {
+      logger.error(err, "Error in syncing accounts.");
+    }
   } catch (err) {
-    logger.error(err, "Error starting the service. Shutting down...");
+    logger.error(err, "Error starting the service.");
+  } finally {
+    logger.info("Shutting down...");
     await shutdown();
-    logger.info("Shutdown complete. Exiting...");
-    process.exit(1);
+    logger.info("Shutdown complete.");
   }
 };
-
-start().catch((err) => {
-  logger.error(err, "Error starting the service. Shutting down...");
-  shutdown().then(() => {
-    logger.info("Shutdown complete. Exiting...");
-    process.exit(1);
-  });
-});
+const cronJob = new CronJob(
+  env.CRON_SCHEDULE,
+  async () => {
+    await start().catch((err) => {
+      logger.error(err, "Error starting the service. Shutting down...");
+      shutdown().then(() => {
+        logger.info("Shutdown complete.");
+      });
+    });
+  },
+  () => {
+    logger.info(`Cron job completed. Next run is in ${cronJob.nextDate()}.`);
+  },
+  true,
+  env.TIMEZONE
+);
+logger.info(
+  `Cron job started. The schedule is to run ${formatCronSchedule(
+    env.CRON_SCHEDULE
+  )}. Next run is in ${cronJob.nextDate()}.`
+);
 
 async function listSubDirectories(directory: string) {
   const subDirectories = await readdir(directory, { withFileTypes: true });

@@ -33,17 +33,17 @@ In your Actual Budget Server config you must be able to login with password and 
 The following config is required for your Actual Budget Server:
 
 ```yaml
+services:
 ...
-   actual_budget_server:
-   image: docker.io/actualbudget/actual-server:latest
-   environment: 
-      ...
+  actual_budget_server:
+    image: docker.io/actualbudget/actual-server:latest
+    environment: ...
       - ACTUAL_OPENID_AUTH_METHOD=openid
       - ACTUAL_LOGIN_METHOD=openid
       - ACTUAL_ALLOWED_LOGIN_METHODS=openid,password,header
       - ACTUAL_OPENID_ENFORCE=false
       ...
-...
+  ...
 ```
 
 ## Running with Docker (pull from docker hub)

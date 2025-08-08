@@ -26,6 +26,26 @@ The service requires the following environment variables:
 
 You can find you budget sync IDs in the Actual Budget app > _Selected Budget_ > Settings > Advanced Settings > Sync ID.
 
+### If using is OIDC with Actual Budget Server
+
+In your Actual Budget Server config you must be able to login with password and on initial login you must set a password.
+
+The following config is required for your Actual Budget Server:
+
+```yaml
+...
+   actual_budget_server:
+   image: docker.io/actualbudget/actual-server:latest
+   environment: 
+      ...
+      - ACTUAL_OPENID_AUTH_METHOD=openid
+      - ACTUAL_LOGIN_METHOD=openid
+      - ACTUAL_ALLOWED_LOGIN_METHODS=openid,password,header
+      - ACTUAL_OPENID_ENFORCE=false
+      ...
+...
+```
+
 ## Running with Docker (pull from docker hub)
 
 ```bash

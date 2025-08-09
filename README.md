@@ -24,11 +24,11 @@ The service requires the following environment variables:
 - `TIMEZONE`: Timezone for the cron job (default: `UTC`)
 - `RUN_ON_START`: Whether to run the sync on startup (default: `false`)
 
-You can find you budget sync IDs in the Actual Budget app > _Selected Budget_ > Settings > Advanced Settings > Sync ID.
+You can find your budget sync IDs in the Actual Budget app > _Selected Budget_ > Settings > Advanced Settings > Sync ID.
 
-### If using is OIDC with Actual Budget Server
+### If using with OIDC provider in Actual Budget Server
 
-In your Actual Budget Server config you must be able to login with password and on initial login you must set a password.
+In your Actual Budget Server config, you must be able to log in with a password, and on initial login, you must set a password.
 
 The following config is required for your Actual Budget Server:
 
@@ -84,7 +84,7 @@ docker run -d \
    CRON_SCHEDULE=0 1 * * *
    LOG_LEVEL=info
    ACTUAL_BUDGET_SYNC_IDS=1cf9fbf9-97b7-4647-8128-8afec1b1fbe2
-   ENCRYPTION_PASSWORDS=your-encryption-password # or leave empty if you don't encrypt your data, the position of the password in the list is the position of the account in the ACTUAL_BUDGET_SYNC_IDS list; to skip an account add a comma to the list in that position
+   ENCRYPTION_PASSWORDS=your-encryption-password # or leave empty if you don't encrypt your data, the position of the password in the list is the position of the account in the ACTUAL_BUDGET_SYNC_IDS list; to skip an account, add a comma to the list in that position
    ```
 
 3. Start the service:

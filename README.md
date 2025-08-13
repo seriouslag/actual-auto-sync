@@ -22,7 +22,7 @@ The service requires the following environment variables:
 - `ACTUAL_BUDGET_SYNC_IDS`: Comma-separated list of budget IDs to sync (e.g. "1cf9fbf9-97b7-4647-8128-8afec1b1fbe2,030d7094-aae8-4d70-aeee-9e29d30d9b88")
 - `ENCRYPTION_PASSWORDS`: Comma-separated list of encryption passwords for each account in the ACTUAL_BUDGET_SYNC_IDS list (e.g. "password1,password2") or leave empty if you don't encrypt your data, the position of the password in the list is the position of the account in the ACTUAL_BUDGET_SYNC_IDS list; to skip an account add a comma to the list in that position
 - `TIMEZONE`: Timezone for the cron job (default: `UTC`)
-- `RUN_ON_START`: Whether to run the sync on startup (default: `false`) - Please note that when setting this to `true`,  you may get a notice email from SimpleFin, as they expect only a bank sync once a day.
+- `RUN_ON_START`: Whether to run the sync on startup (default: `false`) - Please note that when setting this to `true`, you may get a notice email from SimpleFin, as they expect only a bank sync once a day.
 
 
 

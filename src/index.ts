@@ -25,9 +25,11 @@ process.on("uncaughtException", (error) => {
 // These are needed because @actual-app/api throws an unhandled rejection that is not caught by try/catch
 process.on("unhandledRejection", (reason, promise) => {
   logger.error(
-    reason,
-    "Unhandled Rejection at Promise; This may be okay to ignore.",
-    { promise }
+    {
+      reason,
+      promise,
+    },
+    "Unhandled Rejection at Promise; This may be okay to ignore."
   );
 });
 
@@ -41,7 +43,7 @@ async function syncAllAccounts() {
     await runBankSync();
     logger.info("All accounts synced.");
   } catch (err) {
-    logger.error(err, "Error syncing all accounts");
+    logger.error({ err }, "Error syncing all accounts");
   }
 }
 
@@ -80,7 +82,7 @@ const sync = async () => {
           await loadBudget(syncBudgetId);
           logger.info(`Budget ${syncBudgetId} loaded successfully.`);
         } catch (err) {
-          logger.error(err, `Error loading budget ${syncBudgetId}`);
+          logger.error({ err }, `Error loading budget ${syncBudgetId}`);
         }
       }
     );
@@ -96,7 +98,7 @@ const sync = async () => {
           }
           logger.info(`Budget ${budgetId} downloaded successfully.`);
         } catch (err) {
-          logger.error(err, `Error downloading budget ${budgetId}`);
+          logger.error({ err }, `Error downloading budget ${budgetId}`);
         }
       }
     );
@@ -106,10 +108,10 @@ const sync = async () => {
       await syncAllAccounts();
       logger.info("Accounts synced successfully.");
     } catch (err) {
-      logger.error(err, "Error in syncing accounts.");
+      logger.error({ err }, "Error in syncing accounts.");
     }
   } catch (err) {
-    logger.error(err, "Error starting the service.");
+    logger.error({ err }, "Error starting the service.");
   } finally {
     logger.info("Shutting down...");
     await shutdown();
@@ -120,7 +122,7 @@ const cronJob = CronJob.from({
   cronTime: env.CRON_SCHEDULE,
   onTick: async (onCompleteCallback) => {
     await sync().catch((err) => {
-      logger.error(err, "Error running sync. Shutting down...");
+      logger.error({ err }, "Error running sync. Shutting down...");
       shutdown().then(() => {
         logger.info("Shutdown complete.");
       });
@@ -170,7 +172,7 @@ async function getSyncIdMaps(dataDir: string) {
     logger.info("Sync id to budget id map created successfully.");
     return syncIdToBudgetId;
   } catch (err) {
-    logger.error("Error creating map from sync id to budget id", err);
+    logger.error({ err }, "Error creating map from sync id to budget id");
     throw err;
   }
 }

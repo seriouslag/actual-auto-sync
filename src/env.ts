@@ -1,7 +1,7 @@
 import { createEnv } from "@t3-oss/env-core";
 import { config } from "dotenv";
 import { pino } from "pino";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 const logger = pino({
   level: "info",

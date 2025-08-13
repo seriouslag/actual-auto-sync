@@ -20,23 +20,22 @@
     "docker"
   ],
   "dependencies": {
-    "@actual-app/api": "^25.6.1",
+    "@actual-app/api": "^25.8.0",
     "@actual-app/crdt": "^2.1.0",
     "@t3-oss/env-core": "^0.13.8",
-    "better-sqlite3": "^12.1.1",
-    "cron": "^4.3.1",
-    "cronstrue": "^2.61.0",
+    "better-sqlite3": "^12.2.0",
+    "cron": "^4.3.3",
+    "cronstrue": "^3.2.0",
     "dotenv": "^17.0.0",
-    "luxon": "^3.6.1",
-    "pino": "^9.7.0",
-    "uuid": "^11.1.0",
-    "zod": "^3.25.67"
+    "luxon": "^3.7.1",
+    "pino": "^9.9.0",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
-    "@types/luxon": "^3.6.2",
+    "@types/luxon": "^3.7.1",
     "@types/node": "^22.14.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3",
+    "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }
 }

@@ -75,7 +75,7 @@ docker run -d \
 1. Install dependencies:
 
    ```bash
-   # clone repo and `cd` into folder
+   # Clone the repository and `cd` into the folder
    pnpm install
    ```
 

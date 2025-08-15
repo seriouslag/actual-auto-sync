@@ -21,12 +21,12 @@ COPY --from=build /app/dist /app/dist
 # Environment variables
 ENV ACTUAL_SERVER_URL=""
 ENV ACTUAL_SERVER_PASSWORD=""
-# once a day at 1am in UTC
+# once a day at 1am in America/New_York
 ENV CRON_SCHEDULE="0 1 * * *" 
 ENV LOG_LEVEL="info"
 ENV ACTUAL_BUDGET_SYNC_IDS=""
 ENV ENCRYPTION_PASSWORDS=""
-ENV TIMEZONE="UTC"
+ENV TIMEZONE="America/New_York"
 
 # Start the application
 CMD ["pnpm", "start"]

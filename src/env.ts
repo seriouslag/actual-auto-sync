@@ -1,5 +1,6 @@
 import { createEnv } from "@t3-oss/env-core";
 import { config } from "dotenv";
+import { IANAZone } from "luxon";
 import { pino } from "pino";
 import { z } from "zod";
 
@@ -14,12 +15,12 @@ try {
   logger.info("No .env file found. Using system environment variables.");
 }
 
-const budgetIdSchema = z
+export const budgetIdSchema = z
   .string()
   .transform((value) => value.split(","))
   .pipe(z.string().array());
 
-const encryptionPasswordSchema = z
+export const encryptionPasswordSchema = z
   .string()
   .default("")
   .optional()
@@ -27,20 +28,81 @@ const encryptionPasswordSchema = z
   .pipe(z.string().array().optional())
   .default([]);
 
+/**
+ * Default to once a day at 1am
+ * @default "0 1 * * *"
+ */
+export const cronScheduleSchema = z.string().trim().min(9).default("0 1 * * *");
+
+/**
+ * Default to false
+ * @default false
+ */
+export const runOnStartSchema = z
+  .union([z.string(), z.boolean()])
+  .optional()
+  .default(false)
+  .transform((value) => {
+    const loweredValue =
+      typeof value === "string" ? value.trim().toLowerCase() : value;
+    switch (loweredValue) {
+      case true:
+      case "on":
+      case "yes":
+      case "1":
+      case "true":
+        return true;
+      case false:
+      case "off":
+      case "no":
+      case "0":
+      case "false":
+        return false;
+      default:
+        return false;
+    }
+  });
+
+/**
+ * Default to info
+ * @default "info"
+ */
+export const logLevelSchema = z
+  .enum(["info", "debug", "warn", "error"])
+  .optional()
+  .default("info");
+
+/**
+ * @default "Etc/UTC"
+ */
+export const timezoneSchema = z
+  .string()
+  .trim()
+  .refine((tz) => IANAZone.isValidZone(tz), {
+    message: "Invalid IANA time zone (e.g., Etc/UTC, America/New_York).",
+  })
+  .default("Etc/UTC");
+
+/**
+ * Server URL
+ */
+export const serverUrlSchema = z.string().trim().min(1);
+
+/**
+ * Server password
+ */
+export const serverPasswordSchema = z.string().min(1);
+
 export const env = createEnv({
   server: {
-    ACTUAL_SERVER_URL: z.string().min(1),
-    ACTUAL_SERVER_PASSWORD: z.string().min(1),
-    // default to once a day at 1am
-    CRON_SCHEDULE: z.string().min(9).default("0 1 * * *"),
-    LOG_LEVEL: z
-      .enum(["info", "debug", "warn", "error"])
-      .optional()
-      .default("info"),
+    ACTUAL_SERVER_URL: serverUrlSchema,
+    ACTUAL_SERVER_PASSWORD: serverPasswordSchema,
+    CRON_SCHEDULE: cronScheduleSchema,
+    LOG_LEVEL: logLevelSchema,
     ACTUAL_BUDGET_SYNC_IDS: budgetIdSchema,
     ENCRYPTION_PASSWORDS: encryptionPasswordSchema,
-    TIMEZONE: z.string().default("UTC"),
-    RUN_ON_START: z.coerce.boolean().default(false),
+    TIMEZONE: timezoneSchema,
+    RUN_ON_START: runOnStartSchema,
   },
 
   /**

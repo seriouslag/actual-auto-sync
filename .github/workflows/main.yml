@@ -46,7 +46,14 @@ jobs:
         run: pnpm build
 
       - name: Run tests
-        run: pnpm test
+        run: pnpm test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+          fail_ci_if_error: false
 
       - name: Generate commit hash
         id: commit_hash

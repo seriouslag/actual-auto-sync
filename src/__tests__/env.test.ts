@@ -201,15 +201,24 @@ describe("Environment Configuration", () => {
         // Test various boolean string representations
         // In JavaScript, any non-empty string is truthy when coerced to boolean
         const testCases = [
+          { input: true, expected: true },
+          { input: false, expected: false },
           { input: "true", expected: true },
-          { input: "false", expected: true }, // "false" is a non-empty string, so it's truthy
+          { input: "false", expected: false }, // "false" is a non-empty string, so it's truthy
           { input: "1", expected: true },
-          { input: "0", expected: true }, // "0" is a non-empty string, so it's truthy
+          { input: "0", expected: false }, // "0" is a non-empty string, so it's truthy
           { input: "yes", expected: true },
-          { input: "no", expected: true }, // "no" is a non-empty string, so it's truthy
+          { input: "no", expected: false }, // "no" is a non-empty string, so it's truthy
           { input: "on", expected: true },
-          { input: "off", expected: true }, // "off" is a non-empty string, so it's truthy
+          { input: "off", expected: false }, // "off" is a non-empty string, so it's truthy
           { input: "", expected: false }, // Only empty string is falsy
+          { input: "TRUE", expected: true },
+          { input: "FALSE", expected: false },
+          { input: "YES", expected: true },
+          { input: "NO", expected: false },
+          { input: "ON", expected: true },
+          { input: "OFF", expected: false },
+          { input: "DNJSND", expected: false },
         ];
 
         for (const { input, expected } of testCases) {

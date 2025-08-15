@@ -38,7 +38,28 @@ export const cronScheduleSchema = z.string().trim().min(9).default("0 1 * * *");
  * Default to false
  * @default false
  */
-export const runOnStartSchema = z.coerce.boolean().default(false);
+export const runOnStartSchema = z
+  .union([z.string(), z.boolean()])
+  .transform((value) => {
+    const loweredValue =
+      typeof value === "string" ? value.trim().toLowerCase() : value;
+    switch (loweredValue) {
+      case true:
+      case "on":
+      case "yes":
+      case "1":
+      case "true":
+        return true;
+      case false:
+      case "off":
+      case "no":
+      case "0":
+      case "false":
+        return false;
+      default:
+        return false;
+    }
+  });
 
 /**
  * Default to info

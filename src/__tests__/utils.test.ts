@@ -56,7 +56,7 @@ vi.mock("../env.js", () => ({
     CRON_SCHEDULE: "0 0 * * *",
     ACTUAL_BUDGET_SYNC_IDS: ["budget1", "budget2"],
     ENCRYPTION_PASSWORDS: ["pass1", "pass2"],
-    TIMEZONE: "UTC",
+    TIMEZONE: "Etc/UTC",
     RUN_ON_START: false,
   },
 }));

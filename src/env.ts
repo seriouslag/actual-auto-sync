@@ -40,6 +40,8 @@ export const cronScheduleSchema = z.string().trim().min(9).default("0 1 * * *");
  */
 export const runOnStartSchema = z
   .union([z.string(), z.boolean()])
+  .optional()
+  .default(false)
   .transform((value) => {
     const loweredValue =
       typeof value === "string" ? value.trim().toLowerCase() : value;

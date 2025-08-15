@@ -29,9 +29,9 @@ You can find your budget sync IDs in the Actual Budget app > _Selected Budget_ >
 
 ### If using with OIDC auth provider in Actual Budget Server
 
-In your Actual Budget Server config, you must be able to log in with a password, and on initial login, you must set a password.
+In your Actual Budget Server config, you must be able to log in with a password.
 
-The following config is required for your Actual Budget Server:
+Set the following settings in your Actual Budget Server, then on initial login, you must set a password:
 
 ```yaml
 services:

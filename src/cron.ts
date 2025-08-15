@@ -24,7 +24,6 @@ export function onComplete(cronJob: CronJob<() => void, null>): void {
       .nextDate()
       .toLocaleString(DateTime.DATETIME_FULL)}`
   );
-  return;
 }
 
 export function createCronJob(): CronJob<() => void, null> {

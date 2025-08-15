@@ -1,6 +1,7 @@
 # @seriouslag/actual-auto-sync
 
 ![Docker Image Version](https://img.shields.io/docker/v/seriouslag/actual-auto-sync?style=flat&label=Docker%20Image%20Version&link=https%3A%2F%2Fhub.docker.com%2Fr%2Fseriouslag%2Factual-auto-sync)
+[![Code Coverage](https://codecov.io/github/seriouslag/actual-auto-sync/branch/main/graph/badge.svg?token=TPQPYMHI7S)](https://codecov.io/github/seriouslag/actual-auto-sync)
 
 A background service that automatically runs bank sync on your Actual Budget accounts on a scheduled basis.
 

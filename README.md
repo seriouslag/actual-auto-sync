@@ -37,7 +37,7 @@ Set the following settings in your Actual Budget Server, then on initial login, 
 services:
 ...
   actual_budget_server:
-    image: docker.io/actualbudget/actual-server:latest
+    image: actualbudget/actual-server:latest
     environment: ...
       - ACTUAL_OPENID_AUTH_METHOD=openid
       - ACTUAL_LOGIN_METHOD=openid
@@ -68,7 +68,7 @@ docker run -d \
 services:
 ...
   actual-auto-sync:
-    image: docker.io/seriouslag/actual-auto-sync:latest
+    image: seriouslag/actual-auto-sync:latest
     environment: ...
       - ACTUAL_SERVER_URL="your-server-url"
       - ACTUAL_SERVER_PASSWORD="your-password"

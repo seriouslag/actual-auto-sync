@@ -64,7 +64,7 @@ docker run -d \
 ```
 
 ### Running with docker compose
-```
+```yaml
 services:
 ...
   actual-auto-sync:

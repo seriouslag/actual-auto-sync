@@ -69,7 +69,7 @@ services:
 ...
   actual-auto-sync:
     image: seriouslag/actual-auto-sync:latest
-    environment: ...
+    environment:
       - ACTUAL_SERVER_URL="your-server-url"
       - ACTUAL_SERVER_PASSWORD="your-password"
       - CRON_SCHEDULE="0 1 * * *"
@@ -77,7 +77,6 @@ services:
       - ACTUAL_BUDGET_SYNC_IDS="1cf9fbf9-97b7-4647-8128-8afec1b1fbe2"
       - ENCRYPTION_PASSWORDS="password1"
       - TIMEZONE="Etc/UTC"
-      ...
   ...
 ```
 

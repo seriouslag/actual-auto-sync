@@ -50,6 +50,7 @@ services:
 ## Running with Docker (pull from docker hub)
 
 ### direct docker run
+
 ```bash
 docker run -d \
   -e ACTUAL_SERVER_URL="your-server-url" \
@@ -64,19 +65,20 @@ docker run -d \
 ```
 
 ### Running with docker compose
+
 ```yaml
 services:
 ...
   actual-auto-sync:
     image: seriouslag/actual-auto-sync:latest
     environment:
-      - ACTUAL_SERVER_URL="your-server-url"
-      - ACTUAL_SERVER_PASSWORD="your-password"
-      - CRON_SCHEDULE="0 1 * * *"
-      - LOG_LEVEL="info"
-      - ACTUAL_BUDGET_SYNC_IDS="1cf9fbf9-97b7-4647-8128-8afec1b1fbe2"
-      - ENCRYPTION_PASSWORDS="password1"
-      - TIMEZONE="Etc/UTC"
+      - ACTUAL_SERVER_URL=your-server-url
+      - ACTUAL_SERVER_PASSWORD=your-password
+      - CRON_SCHEDULE=0 1 * * *
+      - LOG_LEVEL=info
+      - ACTUAL_BUDGET_SYNC_IDS=1cf9fbf9-97b7-4647-8128-8afec1b1fbe2
+      - ENCRYPTION_PASSWORDS=password1
+      - TIMEZONE=Etc/UTC
   ...
 ```
 

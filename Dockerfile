@@ -2,7 +2,6 @@
 FROM node:22-slim AS builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
 
 # Copy source files
 COPY . /app
@@ -10,6 +9,7 @@ COPY . /app
 WORKDIR /app
 
 FROM builder AS build
+RUN corepack enable
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 RUN pnpm run build
 
@@ -29,4 +29,4 @@ ENV ENCRYPTION_PASSWORDS=""
 ENV TIMEZONE="America/New_York"
 
 # Start the application
-CMD ["pnpm", "start"]
+CMD ["node", "dist/src/index.js"]

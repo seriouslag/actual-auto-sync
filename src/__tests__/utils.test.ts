@@ -216,7 +216,7 @@ describe("utils.ts functions", () => {
     beforeEach(() => {
       vi.clearAllMocks();
       // Mock successful responses by default
-      vi.mocked(init).mockResolvedValue(undefined);
+      vi.mocked(init).mockResolvedValue(undefined as any);
       vi.mocked(shutdown).mockResolvedValue(undefined);
       vi.mocked(downloadBudget).mockResolvedValue(undefined);
       vi.mocked(loadBudget).mockResolvedValue(undefined);

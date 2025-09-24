@@ -1,39 +1,69 @@
 {
-  "extends": ["config:recommended"],
+  "extends": [
+    "config:recommended"
+  ],
   "dependencyDashboard": true,
   "lockFileMaintenance": {
     "enabled": true
   },
-  "labels": ["dependencies"],
+  "labels": [
+    "dependencies"
+  ],
   "rangeStrategy": "bump",
   "packageRules": [
     {
-      "matchPackagePatterns": ["^@actual-app/"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchPackageNames": [
+        "^@actual-app/"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "automerge": true,
       "automergeType": "pr",
-      "schedule": ["after 2am every day"]
+      "schedule": [
+        "after 2am"
+      ]
     },
     {
-      "matchPackagePatterns": ["^@actual-app/"],
-      "matchUpdateTypes": ["major"],
+      "matchPackageNames": [
+        "^@actual-app/"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "automerge": false,
       "groupName": "@actual-app major updates",
-      "schedule": ["every weekend"]
+      "schedule": [
+        "every weekend"
+      ]
     },
     {
-      "matchPackagePatterns": ["^(?!@actual-app/).*"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchPackageNames": [
+        "^(?!@actual-app/).*"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "automerge": false,
       "groupName": "All other minor/patch updates",
-      "schedule": ["every weekend"]
+      "schedule": [
+        "every weekend"
+      ]
     },
     {
-      "matchPackagePatterns": ["^(?!@actual-app/).*"],
-      "matchUpdateTypes": ["major"],
+      "matchPackageNames": [
+        "^(?!@actual-app/).*"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "automerge": false,
       "groupName": "All other major updates",
-      "schedule": ["every weekend"]
+      "schedule": [
+        "every weekend"
+      ]
     }
   ]
 }

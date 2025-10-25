@@ -126,3 +126,22 @@ docker run -d \
 ## License
 
 MIT
+
+## FAQ
+
+### Q: I am getting connection errors.
+A: Double-check your ACTUAL_SERVER_PASSWORD. If you are connecting via a secure connection (https) and you are on a local machine, you may need to disable Node TLS checks.
+```yaml
+# example showing how to disable Node TLS checks
+services:
+  ...
+  actual-auto-sync:
+    image: seriouslag/actual-auto-sync:latest
+    restart: unless-stopped
+    environment:
+      - ACTUAL_SERVER_URL=https://192.168.1.50:5006
+      - ACTUAL_SERVER_PASSWORD=<my password>
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      ...
+  ...
+```

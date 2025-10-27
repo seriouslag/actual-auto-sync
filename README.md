@@ -139,8 +139,8 @@ services:
     image: seriouslag/actual-auto-sync:latest
     restart: unless-stopped
     environment:
-      - ACTUAL_SERVER_URL=https://192.168.1.50:5006
-      - ACTUAL_SERVER_PASSWORD=<my password>
+      - ACTUAL_SERVER_URL=https://<your-local-actual-budget-url>:<your-actual-budget-port>
+      - ACTUAL_SERVER_PASSWORD=<your-actual-budget-password>
       - NODE_TLS_REJECT_UNAUTHORIZED=0
       ...
   ...

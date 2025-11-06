@@ -29,15 +29,15 @@
     "cronstrue": "^3.9.0",
     "dotenv": "^17.2.3",
     "luxon": "^3.7.2",
-    "pino": "^9.14.0",
+    "pino": "^10.1.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/luxon": "^3.7.1",
-    "@types/node": "^22.19.0",
-    "@vitest/coverage-v8": "^3.2.4",
+    "@types/node": "^24.10.0",
+    "@vitest/coverage-v8": "^4.0.7",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.7"
   }
 }

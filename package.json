@@ -3,7 +3,7 @@
   "description": "A background service that automatically syncs your Actual Budget accounts on a scheduled basis.",
   "version": "0.0.1",
   "main": "src/index.ts",
-  "packageManager": "pnpm@10.21.0",
+  "packageManager": "pnpm@10.22.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -34,10 +34,10 @@
   },
   "devDependencies": {
     "@types/luxon": "^3.7.1",
-    "@types/node": "^24.10.0",
-    "@vitest/coverage-v8": "^4.0.8",
+    "@types/node": "^24.10.1",
+    "@vitest/coverage-v8": "^4.0.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.9"
   }
 }

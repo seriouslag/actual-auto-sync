@@ -59,6 +59,20 @@ jobs:
         id: commit_hash
         run: echo "hash=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
 
+      - name: Generate version tag
+        id: version_tag
+        run: |
+          # Extract @actual-app/api version (major.minor.patch)
+          ACTUAL_API_VERSION=$(node -p "require('./package.json').dependencies['@actual-app/api'].replace('^', '').replace('~', '')")
+          
+          # Extract our package patch version (last digit of x.x.x)
+          OUR_VERSION=$(node -p "require('./package.json').version.split('.')[2]")
+          
+          # Combine into format: major.minor.patch.ourpatch
+          VERSION_TAG="${ACTUAL_API_VERSION}.${OUR_VERSION}"
+          echo "tag=${VERSION_TAG}" >> $GITHUB_OUTPUT
+          echo "Generated version tag: ${VERSION_TAG}"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -76,3 +90,4 @@ jobs:
           tags: |
             seriouslag/actual-auto-sync:latest
             seriouslag/actual-auto-sync:${{ steps.commit_hash.outputs.hash }}
+            seriouslag/actual-auto-sync:${{ steps.version_tag.outputs.tag }}

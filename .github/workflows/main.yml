@@ -29,7 +29,7 @@ jobs:
       - name: Get pnpm store directory
         shell: bash
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -57,7 +57,27 @@ jobs:
 
       - name: Generate commit hash
         id: commit_hash
-        run: echo "hash=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+        run: echo "hash=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate version tag
+        id: version_tag
+        run: |
+          # Extract @actual-app/api version (major.minor.patch)
+          ACTUAL_API_VERSION=$(node -p "require('./package.json').dependencies['@actual-app/api'].replace('^', '').replace('~', '')" 2>/dev/null || echo "")
+          
+          if [ -z "$ACTUAL_API_VERSION" ]; then
+            echo "Error: Failed to extract @actual-app/api version"
+            exit 1
+          fi
+          
+          # Use GitHub run number as incremental release counter
+          # This ensures each release gets an incrementing number
+          RELEASE_NUMBER="${{ github.run_number }}"
+          
+          # Combine into format: major.minor.patch.release
+          VERSION_TAG="${ACTUAL_API_VERSION}.${RELEASE_NUMBER}"
+          echo "tag=${VERSION_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Generated version tag: ${VERSION_TAG}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -76,3 +96,4 @@ jobs:
           tags: |
             seriouslag/actual-auto-sync:latest
             seriouslag/actual-auto-sync:${{ steps.commit_hash.outputs.hash }}
+            seriouslag/actual-auto-sync:${{ steps.version_tag.outputs.tag }}

@@ -63,7 +63,12 @@ jobs:
         id: version_tag
         run: |
           # Extract @actual-app/api version (major.minor.patch)
-          ACTUAL_API_VERSION=$(node -p "require('./package.json').dependencies['@actual-app/api'].replace('^', '').replace('~', '')")
+          ACTUAL_API_VERSION=$(node -p "require('./package.json').dependencies['@actual-app/api'].replace('^', '').replace('~', '')" 2>/dev/null || echo "")
+          
+          if [ -z "$ACTUAL_API_VERSION" ]; then
+            echo "Error: Failed to extract @actual-app/api version"
+            exit 1
+          fi
           
           # Use GitHub run number as incremental release counter
           # This ensures each release gets an incrementing number

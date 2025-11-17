@@ -65,11 +65,12 @@ jobs:
           # Extract @actual-app/api version (major.minor.patch)
           ACTUAL_API_VERSION=$(node -p "require('./package.json').dependencies['@actual-app/api'].replace('^', '').replace('~', '')")
           
-          # Extract our package patch version (last digit of x.x.x)
-          OUR_VERSION=$(node -p "require('./package.json').version.split('.')[2]")
+          # Use GitHub run number as incremental release counter
+          # This ensures each release gets an incrementing number
+          RELEASE_NUMBER="${{ github.run_number }}"
           
-          # Combine into format: major.minor.patch.ourpatch
-          VERSION_TAG="${ACTUAL_API_VERSION}.${OUR_VERSION}"
+          # Combine into format: major.minor.patch.release
+          VERSION_TAG="${ACTUAL_API_VERSION}.${RELEASE_NUMBER}"
           echo "tag=${VERSION_TAG}" >> "$GITHUB_OUTPUT"
           echo "Generated version tag: ${VERSION_TAG}"
 

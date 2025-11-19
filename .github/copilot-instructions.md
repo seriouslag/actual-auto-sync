@@ -2,7 +2,7 @@
 
 ## Build and Test
 
-**Prerequisites:** Node.js >= 22, pnpm 10.21.0
+**Prerequisites:** Node.js >= 22, pnpm >= 10.8.1
 
 **Commands:**
 - `pnpm install --frozen-lockfile` - Install dependencies

@@ -21,7 +21,7 @@
     "docker"
   ],
   "dependencies": {
-    "@actual-app/api": "^25.12.0",
+    "@actual-app/api": "^26.1.0",
     "@actual-app/crdt": "^2.1.0",
     "@t3-oss/env-core": "^0.13.8",
     "better-sqlite3": "^12.4.1",

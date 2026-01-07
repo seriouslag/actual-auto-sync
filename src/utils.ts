@@ -7,6 +7,7 @@ import {
   runBankSync,
   downloadBudget,
   loadBudget,
+  sync as syncBudget,
 } from "@actual-app/api";
 import cronstrue from "cronstrue";
 
@@ -24,6 +25,9 @@ export async function syncAllAccounts() {
     logger.info("Syncing all accounts...");
     await runBankSync();
     logger.info("All accounts synced.");
+    logger.info("Syncing budget to server...");
+    await syncBudget();
+    logger.info("Budget synced to server.");
   } catch (err) {
     logger.error({ err }, "Error syncing all accounts");
   }

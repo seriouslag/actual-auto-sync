@@ -35,12 +35,17 @@ vi.mock("@actual-app/api", () => ({
   runBankSync: vi.fn(),
   downloadBudget: vi.fn(),
   loadBudget: vi.fn(),
+  sync: vi.fn(),
 }));
 
 // Import mocked functions
-const { init, shutdown, downloadBudget, loadBudget } = await import(
-  "@actual-app/api"
-);
+const {
+  init,
+  shutdown,
+  downloadBudget,
+  loadBudget,
+  sync: syncBudget,
+} = await import("@actual-app/api");
 const { mkdir } = await import("node:fs/promises");
 
 vi.mock("cronstrue", () => ({
@@ -99,19 +104,36 @@ describe("utils.ts functions", () => {
   });
 
   describe("syncAllAccounts", () => {
-    it("should successfully sync all accounts", async () => {
+    it("should successfully sync all accounts and budget", async () => {
       vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(syncBudget).mockResolvedValue(undefined);
 
       await syncAllAccounts();
 
       expect(logger.info).toHaveBeenCalledWith("Syncing all accounts...");
       expect(runBankSync).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith("All accounts synced.");
+      expect(logger.info).toHaveBeenCalledWith("Syncing budget to server...");
+      expect(syncBudget).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith("Budget synced to server.");
     });
 
     it("should handle errors during sync", async () => {
       const error = new Error("Sync failed");
       vi.mocked(runBankSync).mockRejectedValue(error);
+
+      await syncAllAccounts();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        { err: error },
+        "Error syncing all accounts"
+      );
+    });
+
+    it("should handle errors during budget sync", async () => {
+      const error = new Error("Budget sync failed");
+      vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(syncBudget).mockRejectedValue(error);
 
       await syncAllAccounts();
 
@@ -222,6 +244,7 @@ describe("utils.ts functions", () => {
       vi.mocked(loadBudget).mockResolvedValue(undefined);
       vi.mocked(mkdir).mockResolvedValue(undefined);
       vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(syncBudget).mockResolvedValue(undefined);
 
       // Ensure cronstrue mock returns a valid string
       cronstrueMock.toString.mockReturnValue("every day at midnight");

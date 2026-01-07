@@ -3,3 +3,4 @@ dist/
 .env
 data
 coverage
+package-lock.json

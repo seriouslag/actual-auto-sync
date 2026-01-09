@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 
-import { runBankSync } from "@actual-app/api";
+import { runBankSync, sync as syncBudget } from "@actual-app/api";
 
 import {
   describe,
@@ -35,6 +35,7 @@ vi.mock("@actual-app/api", () => ({
   runBankSync: vi.fn(),
   downloadBudget: vi.fn(),
   loadBudget: vi.fn(),
+  sync: vi.fn(),
 }));
 
 // Import mocked functions
@@ -99,22 +100,42 @@ describe("utils.ts functions", () => {
   });
 
   describe("syncAllAccounts", () => {
-    it("should successfully sync all accounts", async () => {
+    it("should successfully sync all accounts and sync budget to server", async () => {
       vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(syncBudget).mockResolvedValue(undefined);
 
       await syncAllAccounts();
 
       expect(logger.info).toHaveBeenCalledWith("Syncing all accounts...");
       expect(runBankSync).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith("All accounts synced.");
+      expect(logger.info).toHaveBeenCalledWith("Syncing budget to server...");
+      expect(syncBudget).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        "Budget synced to server successfully."
+      );
     });
 
-    it("should handle errors during sync", async () => {
+    it("should handle errors during bank sync", async () => {
       const error = new Error("Sync failed");
       vi.mocked(runBankSync).mockRejectedValue(error);
 
       await syncAllAccounts();
 
+      expect(logger.error).toHaveBeenCalledWith(
+        { err: error },
+        "Error syncing all accounts"
+      );
+    });
+
+    it("should handle errors during budget sync to server", async () => {
+      const error = new Error("Budget sync failed");
+      vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(syncBudget).mockRejectedValue(error);
+
+      await syncAllAccounts();
+
+      expect(runBankSync).toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith(
         { err: error },
         "Error syncing all accounts"
@@ -222,6 +243,7 @@ describe("utils.ts functions", () => {
       vi.mocked(loadBudget).mockResolvedValue(undefined);
       vi.mocked(mkdir).mockResolvedValue(undefined);
       vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(syncBudget).mockResolvedValue(undefined);
 
       // Ensure cronstrue mock returns a valid string
       cronstrueMock.toString.mockReturnValue("every day at midnight");

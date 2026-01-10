@@ -8,6 +8,7 @@ import {
   downloadBudget,
   loadBudget,
   sync as syncBudget,
+  internal,
 } from "@actual-app/api";
 import cronstrue from "cronstrue";
 
@@ -25,11 +26,50 @@ export async function syncAllAccounts() {
     logger.info("Syncing all accounts...");
     await runBankSync();
     logger.info("All accounts synced.");
+
+    // After runBankSync(), the balance_current field is updated via direct SQL
+    // which bypasses CRDT sync. We need to re-apply the balance updates through
+    // the CRDT layer so they sync to the server.
+    logger.info("Syncing account balances through CRDT...");
+    await syncAccountBalancesToCRDT();
+    logger.info("Account balances synced to CRDT.");
+
     logger.info("Syncing budget to server...");
     await syncBudget();
     logger.info("Budget synced to server successfully.");
   } catch (err) {
     logger.error({ err }, "Error syncing all accounts");
+  }
+}
+
+/**
+ * Syncs the balance_current field through the CRDT layer.
+ *
+ * The runBankSync() function updates balance_current via direct SQL,
+ * which bypasses CRDT sync. This function reads the current balance values
+ * and re-applies them through the CRDT-aware updateAccount function
+ * so they will be synced to the server.
+ */
+export async function syncAccountBalancesToCRDT() {
+  try {
+    // Use internal db API to get accounts with balance_current
+    const accounts = await internal.db.getAccounts();
+
+    for (const account of accounts) {
+      // Only update accounts that have a balance_current value
+      if (account.balance_current != null) {
+        logger.info(
+          `Syncing balance for account ${account.name}: ${account.balance_current}`
+        );
+        // Update through CRDT-aware function
+        await internal.db.updateAccount({
+          id: account.id,
+          balance_current: account.balance_current,
+        });
+      }
+    }
+  } catch (err) {
+    logger.error({ err }, "Error syncing account balances to CRDT");
   }
 }
 

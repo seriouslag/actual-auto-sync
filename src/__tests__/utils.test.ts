@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 
-import { runBankSync, sync as syncBudget } from "@actual-app/api";
+import { runBankSync, sync as syncBudget, internal } from "@actual-app/api";
 
 import {
   describe,
@@ -17,6 +17,7 @@ import { logger } from "../logger.js";
 import {
   formatCronSchedule,
   syncAllAccounts,
+  syncAccountBalancesToCRDT,
   listSubDirectories,
   getSyncIdMaps,
   sync,
@@ -36,6 +37,12 @@ vi.mock("@actual-app/api", () => ({
   downloadBudget: vi.fn(),
   loadBudget: vi.fn(),
   sync: vi.fn(),
+  internal: {
+    db: {
+      getAccounts: vi.fn(),
+      updateAccount: vi.fn(),
+    },
+  },
 }));
 
 // Import mocked functions
@@ -100,7 +107,16 @@ describe("utils.ts functions", () => {
   });
 
   describe("syncAllAccounts", () => {
-    it("should successfully sync all accounts and sync budget to server", async () => {
+    beforeEach(() => {
+      // Mock internal API to return accounts with balances
+      vi.mocked(internal.db.getAccounts).mockResolvedValue([
+        { id: "acc1", name: "Checking", balance_current: 1000 },
+        { id: "acc2", name: "Savings", balance_current: 5000 },
+      ] as any);
+      vi.mocked(internal.db.updateAccount).mockResolvedValue(undefined);
+    });
+
+    it("should successfully sync all accounts, sync balances to CRDT, and sync budget to server", async () => {
       vi.mocked(runBankSync).mockResolvedValue(undefined);
       vi.mocked(syncBudget).mockResolvedValue(undefined);
 
@@ -109,6 +125,18 @@ describe("utils.ts functions", () => {
       expect(logger.info).toHaveBeenCalledWith("Syncing all accounts...");
       expect(runBankSync).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith("All accounts synced.");
+      expect(logger.info).toHaveBeenCalledWith(
+        "Syncing account balances through CRDT..."
+      );
+      expect(internal.db.getAccounts).toHaveBeenCalled();
+      expect(internal.db.updateAccount).toHaveBeenCalledWith({
+        id: "acc1",
+        balance_current: 1000,
+      });
+      expect(internal.db.updateAccount).toHaveBeenCalledWith({
+        id: "acc2",
+        balance_current: 5000,
+      });
       expect(logger.info).toHaveBeenCalledWith("Syncing budget to server...");
       expect(syncBudget).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith(
@@ -140,6 +168,50 @@ describe("utils.ts functions", () => {
         { err: error },
         "Error syncing all accounts"
       );
+    });
+  });
+
+  describe("syncAccountBalancesToCRDT", () => {
+    it("should sync account balances through CRDT", async () => {
+      vi.mocked(internal.db.getAccounts).mockResolvedValue([
+        { id: "acc1", name: "Checking", balance_current: 1000 },
+        { id: "acc2", name: "Savings", balance_current: null },
+        { id: "acc3", name: "Credit", balance_current: -500 },
+      ] as any);
+      vi.mocked(internal.db.updateAccount).mockResolvedValue(undefined);
+
+      await syncAccountBalancesToCRDT();
+
+      // Should only update accounts with non-null balance_current
+      expect(internal.db.updateAccount).toHaveBeenCalledTimes(2);
+      expect(internal.db.updateAccount).toHaveBeenCalledWith({
+        id: "acc1",
+        balance_current: 1000,
+      });
+      expect(internal.db.updateAccount).toHaveBeenCalledWith({
+        id: "acc3",
+        balance_current: -500,
+      });
+    });
+
+    it("should handle errors from getAccounts", async () => {
+      const error = new Error("DB error");
+      vi.mocked(internal.db.getAccounts).mockRejectedValue(error);
+
+      await syncAccountBalancesToCRDT();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        { err: error },
+        "Error syncing account balances to CRDT"
+      );
+    });
+
+    it("should handle empty accounts list", async () => {
+      vi.mocked(internal.db.getAccounts).mockResolvedValue([]);
+
+      await syncAccountBalancesToCRDT();
+
+      expect(internal.db.updateAccount).not.toHaveBeenCalled();
     });
   });
 
@@ -244,6 +316,8 @@ describe("utils.ts functions", () => {
       vi.mocked(mkdir).mockResolvedValue(undefined);
       vi.mocked(runBankSync).mockResolvedValue(undefined);
       vi.mocked(syncBudget).mockResolvedValue(undefined);
+      vi.mocked(internal.db.getAccounts).mockResolvedValue([]);
+      vi.mocked(internal.db.updateAccount).mockResolvedValue(undefined);
 
       // Ensure cronstrue mock returns a valid string
       cronstrueMock.toString.mockReturnValue("every day at midnight");

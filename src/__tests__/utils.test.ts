@@ -319,47 +319,42 @@ describe("utils.ts functions", () => {
     });
 
     it("should process budgets sequentially, not in parallel", async () => {
-      const downloadOrder: string[] = [];
-      const loadOrder: string[] = [];
-      const syncOrder: string[] = [];
+      const callOrder: string[] = [];
 
-      // Track the order of downloadBudget calls
+      // Track the order of all operations
       vi.mocked(downloadBudget).mockImplementation(
         async (budgetId: string) => {
-          downloadOrder.push(budgetId);
+          callOrder.push(`download-${budgetId}`);
           // Simulate async work
           await new Promise((resolve) => setTimeout(resolve, 10));
         }
       );
 
-      // Track the order of loadBudget calls
       vi.mocked(loadBudget).mockImplementation(async (budgetId: string) => {
-        loadOrder.push(budgetId);
+        callOrder.push(`load-${budgetId}`);
         // Simulate async work
         await new Promise((resolve) => setTimeout(resolve, 10));
       });
 
-      // Track the order of sync calls
       vi.mocked(runBankSync).mockImplementation(async () => {
-        // Get the last loaded budget
-        const lastLoadedBudget = loadOrder[loadOrder.length - 1];
-        syncOrder.push(lastLoadedBudget);
+        callOrder.push(`sync`);
         await new Promise((resolve) => setTimeout(resolve, 10));
       });
 
       await sync();
 
-      // Verify that downloadBudget was called for each budget in order
-      expect(downloadOrder).toEqual(["budget1", "budget2"]);
+      // Verify the exact order: each budget is fully processed before moving to the next
+      // Expected: download1 -> load1 -> sync1 -> download2 -> load2 -> sync2
+      expect(callOrder).toEqual([
+        "download-budget1",
+        "load-budget1",
+        "sync",
+        "download-budget2",
+        "load-budget2",
+        "sync",
+      ]);
 
-      // Verify that loadBudget was called for each budget in order
-      expect(loadOrder).toEqual(["budget1", "budget2"]);
-
-      // Verify that sync was called for each budget in order
-      expect(syncOrder).toEqual(["budget1", "budget2"]);
-
-      // Verify each budget was fully processed before moving to the next
-      // The order should be: download1, load1, sync1, download2, load2, sync2
+      // Verify each function was called the expected number of times
       expect(vi.mocked(downloadBudget)).toHaveBeenCalledTimes(2);
       expect(vi.mocked(loadBudget)).toHaveBeenCalledTimes(2);
       expect(vi.mocked(runBankSync)).toHaveBeenCalledTimes(2);

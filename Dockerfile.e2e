@@ -1,5 +1,13 @@
 # E2E Test Dockerfile
 FROM node:24.13.0-slim
+
+# Install build dependencies for native modules (better-sqlite3)
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
@@ -9,6 +17,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 
 # Enable pnpm and install dependencies
+# The pnpm.onlyBuiltDependencies config in package.json allows better-sqlite3 build scripts
 RUN corepack enable
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 

@@ -292,13 +292,15 @@ describe("utils.ts functions", () => {
       expect(shutdown).toHaveBeenCalled();
     });
 
-    it("should handle getSyncIdMaps errors", async () => {
-      const error = new Error("Failed to read metadata");
-      vi.mocked(readFile).mockRejectedValue(error);
+    it("should handle budget download errors and continue with other budgets", async () => {
+      const error = new Error("Failed to download budget");
+      vi.mocked(downloadBudget).mockRejectedValueOnce(error);
+      vi.mocked(downloadBudget).mockResolvedValueOnce(undefined);
 
-      // The function should complete even with errors
       await sync();
 
+      // Should attempt to download both budgets
+      expect(downloadBudget).toHaveBeenCalledTimes(2);
       // Should still attempt shutdown
       expect(shutdown).toHaveBeenCalled();
     });
@@ -314,6 +316,48 @@ describe("utils.ts functions", () => {
       // Should continue with the sync process despite cron formatting error
       expect(init).toHaveBeenCalled();
       expect(shutdown).toHaveBeenCalled();
+    });
+
+    it("should process budgets sequentially, not in parallel", async () => {
+      const callOrder: string[] = [];
+
+      // Track the order of all operations
+      vi.mocked(downloadBudget).mockImplementation(
+        async (budgetId: string) => {
+          callOrder.push(`download-${budgetId}`);
+          // Simulate async work
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      );
+
+      vi.mocked(loadBudget).mockImplementation(async (budgetId: string) => {
+        callOrder.push(`load-${budgetId}`);
+        // Simulate async work
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+
+      vi.mocked(runBankSync).mockImplementation(async () => {
+        callOrder.push(`sync`);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+
+      await sync();
+
+      // Verify the exact order: each budget is fully processed before moving to the next
+      // Expected: download1 -> load1 -> sync1 -> download2 -> load2 -> sync2
+      expect(callOrder).toEqual([
+        "download-budget1",
+        "load-budget1",
+        "sync",
+        "download-budget2",
+        "load-budget2",
+        "sync",
+      ]);
+
+      // Verify each function was called the expected number of times
+      expect(vi.mocked(downloadBudget)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(loadBudget)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(runBankSync)).toHaveBeenCalledTimes(2);
     });
   });
 });

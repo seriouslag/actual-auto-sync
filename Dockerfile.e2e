@@ -1,0 +1,22 @@
+# E2E Test Dockerfile
+FROM node:24.11.0-slim
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+WORKDIR /app
+
+# Copy package files first for better layer caching
+COPY package.json pnpm-lock.yaml ./
+
+# Enable pnpm and install dependencies
+RUN corepack enable
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
+# Copy source files
+COPY . .
+
+# Create e2e data directory
+RUN mkdir -p /app/e2e-data
+
+# Run e2e tests
+CMD ["pnpm", "test:e2e"]

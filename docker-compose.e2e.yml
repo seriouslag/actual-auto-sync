@@ -1,0 +1,32 @@
+services:
+  actual-server:
+    image: actualbudget/actual-server:latest
+    ports:
+      - "5006:5006"
+    volumes:
+      - actual-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "node src/scripts/health-check.js"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 15s
+    restart: "no"
+
+  e2e-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+    depends_on:
+      actual-server:
+        condition: service_healthy
+    environment:
+      - ACTUAL_SERVER_URL=http://actual-server:5006
+      - ACTUAL_SERVER_PASSWORD=test-password-e2e
+      - ACTUAL_DATA_DIR=/app/e2e-data
+    volumes:
+      - e2e-data:/app/e2e-data
+
+volumes:
+  actual-data:
+  e2e-data:

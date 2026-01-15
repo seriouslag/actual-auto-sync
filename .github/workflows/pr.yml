@@ -41,8 +41,11 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Run tests
+      - name: Run unit tests
         run: pnpm test:coverage
+
+      - name: Run e2e tests
+        run: pnpm test:e2e:docker
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

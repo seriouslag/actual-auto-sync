@@ -10,6 +10,8 @@
     "start": "node --loader ts-node/esm src/index.ts",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "vitest run --config vitest.config.e2e.mts",
+    "test:e2e:docker": "docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e-tests",
     "build": "tsc"
   },
   "keywords": [
@@ -23,21 +25,21 @@
   "dependencies": {
     "@actual-app/api": "^26.2.0",
     "@actual-app/crdt": "^2.1.0",
-    "@t3-oss/env-core": "^0.13.8",
-    "better-sqlite3": "^12.4.1",
-    "cron": "^4.3.4",
+    "@t3-oss/env-core": "^0.13.10",
+    "better-sqlite3": "^12.6.0",
+    "cron": "^4.4.0",
     "cronstrue": "^3.9.0",
     "dotenv": "^17.2.3",
     "luxon": "^3.7.2",
-    "pino": "^10.1.0",
-    "zod": "^4.1.12"
+    "pino": "^10.2.0",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@types/luxon": "^3.7.1",
-    "@types/node": "^24.10.0",
-    "@vitest/coverage-v8": "^4.0.8",
+    "@types/node": "^25.0.9",
+    "@vitest/coverage-v8": "^4.0.17",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.17"
   }
 }

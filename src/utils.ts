@@ -50,51 +50,31 @@ export const sync = async () => {
     const formattedSchedule = formatCronSchedule(env.CRON_SCHEDULE);
     logger.info(`Scheduling sync to run ${formattedSchedule}...`);
 
-    const syncIdToBudgetId = await getSyncIdMaps(ACTUAL_DATA_DIR);
+    // Process each budget sequentially to avoid concurrent API access issues
+    for (let index = 0; index < env.ACTUAL_BUDGET_SYNC_IDS.length; index++) {
+      const budgetId = env.ACTUAL_BUDGET_SYNC_IDS[index];
+      try {
+        logger.info(`Downloading budget ${budgetId}...`);
+        const password = env.ENCRYPTION_PASSWORDS[index];
+        if (password) {
+          await downloadBudget(budgetId, { password });
+        } else {
+          await downloadBudget(budgetId);
+        }
+        logger.info(`Budget ${budgetId} downloaded successfully.`);
 
-    const tasks = Object.entries(syncIdToBudgetId).map(
-      async ([syncId, budgetId]) => {
-        // If the sync id is not in the ACTUAL_BUDGET_SYNC_IDS array, skip it
-        if (!(syncId in env.ACTUAL_BUDGET_SYNC_IDS)) {
-          logger.info(
-            `Sync id ${syncId} not in ACTUAL_BUDGET_SYNC_IDS, skipping...`
-          );
-          return;
-        }
-        logger.info(`Sync id: ${syncId}, Budget id: ${budgetId}`);
-        const syncBudgetId = syncIdToBudgetId[syncId];
-        try {
-          logger.info(`Loading budget ${syncBudgetId}...`);
-          await loadBudget(syncBudgetId);
-          logger.info(`Budget ${syncBudgetId} loaded successfully.`);
-        } catch (err) {
-          logger.error({ err }, `Error loading budget ${syncBudgetId}`);
-        }
+        // After downloading, load the budget
+        logger.info(`Loading budget ${budgetId}...`);
+        await loadBudget(budgetId);
+        logger.info(`Budget ${budgetId} loaded successfully.`);
+
+        // Sync accounts for this budget
+        logger.info(`Syncing accounts for budget ${budgetId}...`);
+        await syncAllAccounts();
+        logger.info(`Accounts synced successfully for budget ${budgetId}.`);
+      } catch (err) {
+        logger.error({ err }, `Error processing budget ${budgetId}`);
       }
-    );
-    const syncTasks = env.ACTUAL_BUDGET_SYNC_IDS.map(
-      async (budgetId, index) => {
-        try {
-          logger.info(`Downloading budget ${budgetId}...`);
-          const password = env.ENCRYPTION_PASSWORDS[index];
-          if (password) {
-            await downloadBudget(budgetId, { password });
-          } else {
-            await downloadBudget(budgetId);
-          }
-          logger.info(`Budget ${budgetId} downloaded successfully.`);
-        } catch (err) {
-          logger.error({ err }, `Error downloading budget ${budgetId}`);
-        }
-      }
-    );
-    await Promise.all([...tasks, ...syncTasks]);
-    try {
-      logger.info("Syncing accounts...");
-      await syncAllAccounts();
-      logger.info("Accounts synced successfully.");
-    } catch (err) {
-      logger.error({ err }, "Error in syncing accounts.");
     }
   } catch (err) {
     logger.error({ err }, "Error starting the service.");

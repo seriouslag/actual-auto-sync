@@ -85,7 +85,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: seriouslag
+          username: cavazosapps
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image
@@ -94,6 +94,6 @@ jobs:
           context: .
           push: true
           tags: |
-            seriouslag/actual-auto-sync:latest
-            seriouslag/actual-auto-sync:${{ steps.commit_hash.outputs.hash }}
-            seriouslag/actual-auto-sync:${{ steps.version_tag.outputs.tag }}
+            cavazosapps/actual-auto-sync:latest
+            cavazosapps/actual-auto-sync:${{ steps.commit_hash.outputs.hash }}
+            cavazosapps/actual-auto-sync:${{ steps.version_tag.outputs.tag }}

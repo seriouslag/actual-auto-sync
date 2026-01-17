@@ -10,8 +10,8 @@
  * 6. Sync changes back to server (sync)
  * 7. Shutdown
  */
-import * as api from "@actual-app/api";
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import * as api from '@actual-app/api';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import {
   E2E_CONFIG,
@@ -23,9 +23,9 @@ import {
   getSyncIdMaps,
   listSubDirectories,
   readBudgetMetadata,
-} from "./setup.js";
+} from './setup.js';
 
-describe("E2E: actual-auto-sync Workflow", () => {
+describe('E2E: actual-auto-sync Workflow', () => {
   // Store seeded budget info for use across tests
   let seededSyncId: string;
 
@@ -41,7 +41,7 @@ describe("E2E: actual-auto-sync Workflow", () => {
     await cleanupDataDir();
   });
 
-  it("should seed a test budget on the server", async () => {
+  it('should seed a test budget on the server', async () => {
     // Initialize the API
     await initApi();
 
@@ -60,7 +60,7 @@ describe("E2E: actual-auto-sync Workflow", () => {
     console.log(`Verified budget exists on server`);
   });
 
-  it("should download budget by sync ID and load it", async () => {
+  it('should download budget by sync ID and load it', async () => {
     // The seeded budget is still loaded from previous test
     // Just verify we can access it
     const accounts = await api.getAccounts();
@@ -68,7 +68,7 @@ describe("E2E: actual-auto-sync Workflow", () => {
     console.log(`Budget has ${accounts.length} account(s)`);
 
     // Verify the account we created
-    const testAccount = accounts.find((a) => a.name === "E2E Test Checking");
+    const testAccount = accounts.find((a) => a.name === 'E2E Test Checking');
     expect(testAccount).toBeDefined();
     console.log(`Found test account: ${testAccount!.name}`);
 
@@ -83,7 +83,7 @@ describe("E2E: actual-auto-sync Workflow", () => {
     console.log(`Metadata: budgetId=${metadata.id}, syncId=${metadata.groupId}`);
   });
 
-  it("should map sync IDs to budget IDs using getSyncIdMaps", async () => {
+  it('should map sync IDs to budget IDs using getSyncIdMaps', async () => {
     // This is the workaround the app uses because the API doesn't provide
     // a direct way to get the budget ID from the sync ID
     const syncIdMap = await getSyncIdMaps(E2E_CONFIG.dataDir);
@@ -94,28 +94,28 @@ describe("E2E: actual-auto-sync Workflow", () => {
     console.log(`Sync ID map: ${JSON.stringify(syncIdMap)}`);
   });
 
-  it("should run bank sync and sync to server", async () => {
+  it('should run bank sync and sync to server', async () => {
     // Run bank sync - for unlinked accounts this completes without fetching transactions
-    console.log("Running bank sync...");
+    console.log('Running bank sync...');
     await api.runBankSync();
-    console.log("Bank sync completed");
+    console.log('Bank sync completed');
 
     // Sync changes back to server
-    console.log("Syncing to server...");
+    console.log('Syncing to server...');
     await api.sync();
-    console.log("Synced to server successfully");
+    console.log('Synced to server successfully');
   });
 
-  it("should shutdown cleanly", async () => {
-    console.log("Shutting down...");
+  it('should shutdown cleanly', async () => {
+    console.log('Shutting down...');
     await shutdownApi();
-    console.log("Shutdown complete");
-    console.log("\n✓ Complete sync workflow executed successfully!");
+    console.log('Shutdown complete');
+    console.log('\n✓ Complete sync workflow executed successfully!');
   });
 });
 
 // Separate test suite for error handling
-describe("E2E: Error Handling", () => {
+describe('E2E: Error Handling', () => {
   beforeAll(async () => {
     await cleanupDataDir();
   });
@@ -124,18 +124,18 @@ describe("E2E: Error Handling", () => {
     await cleanupDataDir();
   });
 
-  it("should handle connection errors gracefully", async () => {
+  it('should handle connection errors gracefully', async () => {
     const badConfig = {
       dataDir: E2E_CONFIG.dataDir,
-      serverURL: "http://localhost:9999", // Wrong port
+      serverURL: 'http://localhost:9999', // Wrong port
       password: E2E_CONFIG.serverPassword,
     };
 
     await expect(api.init(badConfig)).rejects.toThrow();
-    console.log("Correctly rejected bad server connection");
+    console.log('Correctly rejected bad server connection');
   });
 
-  it("should verify getBudgets returns server budget list", async () => {
+  it('should verify getBudgets returns server budget list', async () => {
     // Initialize with good config
     await initApi();
 
@@ -145,7 +145,7 @@ describe("E2E: Error Handling", () => {
     console.log(`Server has ${budgets.length} budget(s)`);
 
     // Fake budget IDs should not exist
-    const fakeExists = budgets.some((b) => b.id === "invalid-sync-id-12345");
+    const fakeExists = budgets.some((b) => b.id === 'invalid-sync-id-12345');
     expect(fakeExists).toBe(false);
 
     await shutdownApi();

@@ -1,27 +1,32 @@
 {
   "name": "@seriouslag/actual-auto-sync",
-  "description": "A background service that automatically syncs your Actual Budget accounts on a scheduled basis.",
   "version": "0.0.1",
-  "main": "src/index.ts",
-  "packageManager": "pnpm@10.21.0",
+  "description": "A background service that automatically syncs your Actual Budget accounts on a scheduled basis.",
+  "keywords": [
+    "actual",
+    "auto",
+    "bank",
+    "budget",
+    "docker",
+    "sync"
+  ],
   "license": "MIT",
   "type": "module",
+  "main": "src/index.ts",
   "scripts": {
     "start": "node --loader ts-node/esm src/index.ts",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.config.e2e.mts",
     "test:e2e:docker": "docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e-tests",
-    "build": "tsc"
+    "build": "tsc",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "check": "pnpm lint && pnpm format:check && pnpm build",
+    "prepare": "lefthook install"
   },
-  "keywords": [
-    "actual",
-    "budget",
-    "bank",
-    "sync",
-    "auto",
-    "docker"
-  ],
   "dependencies": {
     "@actual-app/api": "^26.2.0",
     "@actual-app/crdt": "^2.1.0",
@@ -38,14 +43,20 @@
     "@types/luxon": "^3.7.1",
     "@types/node": "^25.0.9",
     "@vitest/coverage-v8": "^4.0.17",
+    "eslint-plugin-unused-imports": "^4.3.0",
+    "lefthook": "^2.0.15",
+    "oxfmt": "^0.24.0",
+    "oxlint": "^1.39.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
   },
+  "packageManager": "pnpm@10.21.0",
   "pnpm": {
     "onlyBuiltDependencies": [
       "better-sqlite3",
-      "esbuild"
+      "esbuild",
+      "lefthook"
     ]
   }
 }

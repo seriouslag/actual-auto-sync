@@ -7,16 +7,16 @@
  */
 
 // Intercept unhandled rejections from @actual-app/api
-process.on("unhandledRejection", (reason, promise) => {
+process.on('unhandledRejection', (reason, promise) => {
   const stack = reason instanceof Error ? reason.stack : String(reason);
 
   // Suppress rejections from @actual-app/api internal operations
   if (
-    stack?.includes("actual-app") ||
-    stack?.includes("download-budget") ||
-    stack?.includes("bundle.api.js")
+    stack?.includes('actual-app') ||
+    stack?.includes('download-budget') ||
+    stack?.includes('bundle.api.js')
   ) {
-    console.log("[E2E Setup] Suppressed unhandled rejection from @actual-app/api");
+    console.log('[E2E Setup] Suppressed unhandled rejection from @actual-app/api');
     // Prevent the rejection from bubbling up
     return;
   }

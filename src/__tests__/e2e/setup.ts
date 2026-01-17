@@ -1,13 +1,12 @@
-import { mkdir, rm, readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
-
-import * as api from "@actual-app/api";
+import * as api from '@actual-app/api';
+import { mkdir, rm, readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 // E2E test configuration - uses environment variables or defaults
 export const E2E_CONFIG = {
-  serverUrl: process.env.ACTUAL_SERVER_URL || "http://localhost:5006",
-  serverPassword: process.env.ACTUAL_SERVER_PASSWORD || "test-password-e2e",
-  dataDir: process.env.ACTUAL_DATA_DIR || "./e2e-data",
+  serverUrl: process.env.ACTUAL_SERVER_URL || 'http://localhost:5006',
+  serverPassword: process.env.ACTUAL_SERVER_PASSWORD || 'test-password-e2e',
+  dataDir: process.env.ACTUAL_DATA_DIR || './e2e-data',
 };
 
 /**
@@ -18,7 +17,7 @@ export async function needsBootstrap(): Promise<boolean> {
     const response = await fetch(`${E2E_CONFIG.serverUrl}/account/needs-bootstrap`);
     if (response.ok) {
       const data = await response.json();
-      return data.status === "ok" && data.data?.bootstrapped === false;
+      return data.status === 'ok' && data.data?.bootstrapped === false;
     }
   } catch {
     // If endpoint doesn't exist or fails, assume no bootstrap needed
@@ -30,12 +29,12 @@ export async function needsBootstrap(): Promise<boolean> {
  * Bootstrap the server with initial password (first-time setup)
  */
 export async function bootstrapServer(): Promise<void> {
-  console.log("Bootstrapping server with initial password...");
+  console.log('Bootstrapping server with initial password...');
 
   const response = await fetch(`${E2E_CONFIG.serverUrl}/account/bootstrap`, {
-    method: "POST",
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({ password: E2E_CONFIG.serverPassword }),
   });
@@ -46,20 +45,17 @@ export async function bootstrapServer(): Promise<void> {
   }
 
   const data = await response.json();
-  if (data.status !== "ok") {
+  if (data.status !== 'ok') {
     throw new Error(`Bootstrap failed: ${JSON.stringify(data)}`);
   }
 
-  console.log("Server bootstrapped successfully");
+  console.log('Server bootstrapped successfully');
 }
 
 /**
  * Wait for the Actual Budget server to be ready
  */
-export async function waitForServer(
-  maxAttempts = 30,
-  delayMs = 1000
-): Promise<void> {
+export async function waitForServer(maxAttempts = 30, delayMs = 1000): Promise<void> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const response = await fetch(`${E2E_CONFIG.serverUrl}/`);
@@ -78,16 +74,12 @@ export async function waitForServer(
     }
 
     if (attempt < maxAttempts) {
-      console.log(
-        `Waiting for server... attempt ${attempt}/${maxAttempts}`
-      );
+      console.log(`Waiting for server... attempt ${attempt}/${maxAttempts}`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 
-  throw new Error(
-    `Server at ${E2E_CONFIG.serverUrl} not ready after ${maxAttempts} attempts`
-  );
+  throw new Error(`Server at ${E2E_CONFIG.serverUrl} not ready after ${maxAttempts} attempts`);
 }
 
 /**
@@ -136,7 +128,7 @@ export function createSampleTransactions(count = 5) {
   for (let i = 0; i < count; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = date.toISOString().split('T')[0];
 
     transactions.push({
       date: dateStr,
@@ -167,16 +159,15 @@ export async function seedTestBudget(): Promise<{
 
   console.log(`Seeding test budget: ${budgetName}`);
 
-  let createdAccountId = "";
+  let createdAccountId = '';
 
   await api.runImport(budgetName, async () => {
     // Create a checking account with initial balance
     createdAccountId = await api.createAccount(
       {
-        name: "E2E Test Checking",
-        type: "checking",
+        name: 'E2E Test Checking',
       },
-      10000 * 100 // $10,000 initial balance in cents
+      10000 * 100, // $10,000 initial balance in cents
     );
 
     console.log(`Created account: ${createdAccountId}`);
@@ -222,9 +213,7 @@ export async function seedTestBudget(): Promise<{
  */
 export async function listSubDirectories(directory: string): Promise<string[]> {
   const subDirectories = await readdir(directory, { withFileTypes: true });
-  return subDirectories
-    .filter((dirent) => dirent.isDirectory())
-    .map((dirent) => dirent.name);
+  return subDirectories.filter((dirent) => dirent.isDirectory()).map((dirent) => dirent.name);
 }
 
 /**
@@ -234,18 +223,16 @@ export async function listSubDirectories(directory: string): Promise<string[]> {
  * This is the workaround the app uses because the Actual API doesn't provide
  * a direct way to get the budget ID from the sync ID.
  */
-export async function getSyncIdMaps(
-  dataDir: string
-): Promise<Record<string, string>> {
-  console.log("Getting sync id to budget id map...");
+export async function getSyncIdMaps(dataDir: string): Promise<Record<string, string>> {
+  console.log('Getting sync id to budget id map...');
   try {
     const directories = await listSubDirectories(dataDir);
     const syncIdToBudgetId: Record<string, string> = {};
 
     const tasks = directories.map(async (subDir) => {
       try {
-        const metadataPath = join(dataDir, subDir, "metadata.json");
-        const metadataContent = await readFile(metadataPath, "utf-8");
+        const metadataPath = join(dataDir, subDir, 'metadata.json');
+        const metadataContent = await readFile(metadataPath, 'utf-8');
         const metadata = JSON.parse(metadataContent);
         // groupId is the sync ID, id is the budget ID
         syncIdToBudgetId[metadata.groupId] = metadata.id;
@@ -257,10 +244,12 @@ export async function getSyncIdMaps(
     });
 
     await Promise.all(tasks);
-    console.log(`Sync id to budget id map created: ${Object.keys(syncIdToBudgetId).length} entries`);
+    console.log(
+      `Sync id to budget id map created: ${Object.keys(syncIdToBudgetId).length} entries`,
+    );
     return syncIdToBudgetId;
   } catch (err) {
-    console.error("Error creating map from sync id to budget id:", err);
+    console.error('Error creating map from sync id to budget id:', err);
     throw err;
   }
 }
@@ -270,19 +259,19 @@ export async function getSyncIdMaps(
  * This is what the app does after loading a budget.
  */
 export async function syncAllAccounts(): Promise<void> {
-  console.log("Syncing all accounts...");
+  console.log('Syncing all accounts...');
   await api.runBankSync();
-  console.log("All accounts synced.");
-  console.log("Syncing budget to server...");
+  console.log('All accounts synced.');
+  console.log('Syncing budget to server...');
   await api.sync();
-  console.log("Budget synced to server successfully.");
+  console.log('Budget synced to server successfully.');
 }
 
 /**
  * Interface for budget metadata stored in metadata.json
  */
 export interface BudgetMetadata {
-  id: string;      // Budget ID (local identifier)
+  id: string; // Budget ID (local identifier)
   groupId: string; // Sync ID (server identifier)
   name?: string;
 }
@@ -292,9 +281,9 @@ export interface BudgetMetadata {
  */
 export async function readBudgetMetadata(
   dataDir: string,
-  budgetDirName: string
+  budgetDirName: string,
 ): Promise<BudgetMetadata> {
-  const metadataPath = join(dataDir, budgetDirName, "metadata.json");
-  const content = await readFile(metadataPath, "utf-8");
+  const metadataPath = join(dataDir, budgetDirName, 'metadata.json');
+  const content = await readFile(metadataPath, 'utf-8');
   return JSON.parse(content);
 }

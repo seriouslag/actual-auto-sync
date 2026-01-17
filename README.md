@@ -130,7 +130,9 @@ MIT
 ## FAQ
 
 ### Q: I am getting connection errors.
+
 A: Double-check your ACTUAL_SERVER_PASSWORD. If you are connecting via a secure connection (https) and you are on a local machine, you may need to disable Node TLS checks.
+
 ```yaml
 # example showing how to disable Node TLS checks
 services:

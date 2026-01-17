@@ -3,7 +3,7 @@
   "description": "A background service that automatically syncs your Actual Budget accounts on a scheduled basis.",
   "version": "0.0.1",
   "main": "src/index.ts",
-  "packageManager": "pnpm@10.21.0",
+  "packageManager": "pnpm@10.28.0",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -23,21 +23,21 @@
   "dependencies": {
     "@actual-app/api": "^26.1.0",
     "@actual-app/crdt": "^2.1.0",
-    "@t3-oss/env-core": "^0.13.8",
-    "better-sqlite3": "^12.4.1",
-    "cron": "^4.3.4",
+    "@t3-oss/env-core": "^0.13.10",
+    "better-sqlite3": "^12.6.2",
+    "cron": "^4.4.0",
     "cronstrue": "^3.9.0",
     "dotenv": "^17.2.3",
     "luxon": "^3.7.2",
-    "pino": "^10.1.0",
-    "zod": "^4.1.12"
+    "pino": "^10.2.0",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@types/luxon": "^3.7.1",
-    "@types/node": "^24.10.0",
-    "@vitest/coverage-v8": "^4.0.8",
+    "@types/node": "^24.10.9",
+    "@vitest/coverage-v8": "^4.0.17",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.17"
   }
 }

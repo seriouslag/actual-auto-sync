@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - "README.md"
-      - "docs/**"
-      - "*.md"
+      - 'README.md'
+      - 'docs/**'
+      - '*.md'
 
 jobs:
   build-test-deploy:
@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "24.11.0"
+          node-version: '24.11.0'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2

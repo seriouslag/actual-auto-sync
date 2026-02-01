@@ -89,8 +89,8 @@ describe('utils.ts functions', () => {
 
   describe('syncAllAccounts', () => {
     it('should successfully sync all accounts and sync budget to server', async () => {
-      vi.mocked(runBankSync).mockResolvedValue();
-      vi.mocked(syncBudget).mockResolvedValue();
+      vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(syncBudget).mockResolvedValue(undefined);
 
       await syncAllAccounts();
 
@@ -108,18 +108,18 @@ describe('utils.ts functions', () => {
 
       await syncAllAccounts();
 
-      expect(logger.error).toHaveBeenCalledWith({ err: error }, 'Error syncing all accounts');
+      expect(logger.error).toHaveBeenCalledWith({ error }, 'Error syncing all accounts');
     });
 
     it('should handle errors during budget sync to server', async () => {
       const error = new Error('Budget sync failed');
-      vi.mocked(runBankSync).mockResolvedValue();
+      vi.mocked(runBankSync).mockResolvedValue(undefined);
       vi.mocked(syncBudget).mockRejectedValue(error);
 
       await syncAllAccounts();
 
       expect(runBankSync).toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith({ err: error }, 'Error syncing all accounts');
+      expect(logger.error).toHaveBeenCalledWith({ error }, 'Error syncing all accounts');
     });
   });
 
@@ -183,7 +183,9 @@ describe('utils.ts functions', () => {
     });
 
     it('should handle metadata parsing errors', async () => {
-      vi.mocked(readdir).mockResolvedValue([{ name: 'dir1', isDirectory: () => true }] as unknown as Awaited<ReturnType<typeof readdir>>);
+      vi.mocked(readdir).mockResolvedValue([
+        { name: 'dir1', isDirectory: () => true },
+      ] as unknown as Awaited<ReturnType<typeof readdir>>);
       vi.mocked(readFile).mockResolvedValue('invalid json');
 
       await expect(getSyncIdMaps('/test/data')).rejects.toThrow();
@@ -191,7 +193,9 @@ describe('utils.ts functions', () => {
     });
 
     it('should handle readFile errors', async () => {
-      vi.mocked(readdir).mockResolvedValue([{ name: 'dir1', isDirectory: () => true }] as unknown as Awaited<ReturnType<typeof readdir>>);
+      vi.mocked(readdir).mockResolvedValue([
+        { name: 'dir1', isDirectory: () => true },
+      ] as unknown as Awaited<ReturnType<typeof readdir>>);
       vi.mocked(readFile).mockRejectedValue(new Error('File not found'));
 
       await expect(getSyncIdMaps('/test/data')).rejects.toThrow('File not found');
@@ -205,11 +209,11 @@ describe('utils.ts functions', () => {
       // Mock successful responses by default
       vi.mocked(init).mockResolvedValue(undefined as never);
       vi.mocked(shutdown).mockResolvedValue(undefined as never);
-      vi.mocked(downloadBudget).mockResolvedValue();
-      vi.mocked(loadBudget).mockResolvedValue();
+      vi.mocked(downloadBudget).mockResolvedValue(undefined);
+      vi.mocked(loadBudget).mockResolvedValue(undefined);
       vi.mocked(mkdir).mockResolvedValue(undefined);
-      vi.mocked(runBankSync).mockResolvedValue();
-      vi.mocked(syncBudget).mockResolvedValue();
+      vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(syncBudget).mockResolvedValue(undefined);
 
       // Ensure cronstrue mock returns a valid string
       cronstrueMock.toString.mockReturnValue('every day at midnight');

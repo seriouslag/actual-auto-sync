@@ -49,16 +49,19 @@ export const runOnStartSchema = z
       case 'on':
       case 'yes':
       case '1':
-      case 'true':
+      case 'true': {
         return true;
+      }
       case false:
       case 'off':
       case 'no':
       case '0':
-      case 'false':
+      case 'false': {
         return false;
-      default:
+      }
+      default: {
         return false;
+      }
     }
   });
 

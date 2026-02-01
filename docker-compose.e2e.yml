@@ -1,17 +1,40 @@
 services:
+  # Mock SimpleFIN Server
+  # Provides a fake SimpleFIN API for testing bank sync functionality
+  mock-simplefin:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock-simplefin
+    ports:
+      - '8080:8080'
+    environment:
+      - MOCK_SIMPLEFIN_PORT=8080
+      - MOCK_SIMPLEFIN_USERNAME=test
+      - MOCK_SIMPLEFIN_PASSWORD=test123
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080/health']
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: 'no'
+
   actual-server:
     image: actualbudget/actual-server:latest
     ports:
-      - "5006:5006"
+      - '5006:5006'
     volumes:
       - actual-data:/data
     healthcheck:
-      test: ["CMD-SHELL", "node src/scripts/health-check.js"]
+      test: ['CMD-SHELL', 'node src/scripts/health-check.js']
       interval: 5s
       timeout: 10s
       retries: 12
       start_period: 15s
-    restart: "no"
+    restart: 'no'
+    depends_on:
+      mock-simplefin:
+        condition: service_healthy
 
   e2e-tests:
     build:
@@ -20,10 +43,23 @@ services:
     depends_on:
       actual-server:
         condition: service_healthy
+      mock-simplefin:
+        condition: service_healthy
     environment:
       - ACTUAL_SERVER_URL=http://actual-server:5006
       - ACTUAL_SERVER_PASSWORD=test-password-e2e
       - ACTUAL_DATA_DIR=/app/e2e-data
+      # Mock SimpleFIN config (for mock server tests)
+      - MOCK_SIMPLEFIN_PORT=8080
+      - MOCK_SIMPLEFIN_URL=http://mock-simplefin:8080
+      - MOCK_SIMPLEFIN_ACCESS_KEY=https://test:test123@mock-simplefin:8080/
+      # Real SimpleFIN tokens (for multi-budget tests)
+      # These are demo tokens from beta-bridge.simplefin.org
+      # Set SIMPLEFIN_ACCESS_KEY_1/2 if tokens have been pre-claimed
+      - SIMPLEFIN_SETUP_TOKEN_1=${SIMPLEFIN_SETUP_TOKEN_1:-}
+      - SIMPLEFIN_SETUP_TOKEN_2=${SIMPLEFIN_SETUP_TOKEN_2:-}
+      - SIMPLEFIN_ACCESS_KEY_1=${SIMPLEFIN_ACCESS_KEY_1:-}
+      - SIMPLEFIN_ACCESS_KEY_2=${SIMPLEFIN_ACCESS_KEY_2:-}
     volumes:
       - e2e-data:/app/e2e-data
 

@@ -9,8 +9,8 @@ import { sync } from './utils.js';
 export async function onTick(onCompleteCallback: () => Promise<void> | void) {
   try {
     await sync();
-  } catch (err) {
-    logger.error({ err }, 'Error running sync. Shutting down...');
+  } catch (error) {
+    logger.error({ error }, 'Error running sync. Shutting down...');
     await shutdown();
     logger.info('Shutdown complete.');
   }

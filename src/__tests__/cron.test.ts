@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock external dependencies
 vi.mock('@actual-app/api', () => ({
@@ -87,7 +87,7 @@ describe('cron.ts functions', () => {
 
       expect(mockSync).toHaveBeenCalledOnce();
       expect(mockLogger.error).toHaveBeenCalledWith(
-        { err: syncError },
+        { error: syncError },
         'Error running sync. Shutting down...',
       );
       expect(mockShutdown).toHaveBeenCalledOnce();
@@ -107,7 +107,7 @@ describe('cron.ts functions', () => {
 
       expect(mockSync).toHaveBeenCalledOnce();
       expect(mockLogger.error).toHaveBeenCalledWith(
-        { err: syncError },
+        { error: syncError },
         'Error running sync. Shutting down...',
       );
       expect(mockShutdown).toHaveBeenCalledOnce();

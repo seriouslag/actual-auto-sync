@@ -1,13 +1,13 @@
 import {
-  init,
-  shutdown,
-  runBankSync,
   downloadBudget,
+  init,
   loadBudget,
+  runBankSync,
+  shutdown,
   sync as syncBudget,
 } from '@actual-app/api';
 import cronstrue from 'cronstrue';
-import { mkdir, readdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { env } from './env.js';
@@ -27,8 +27,8 @@ export async function syncAllAccounts() {
     logger.info('Syncing budget to server...');
     await syncBudget();
     logger.info('Budget synced to server successfully.');
-  } catch (err) {
-    logger.error({ err }, 'Error syncing all accounts');
+  } catch (error) {
+    logger.error({ error }, 'Error syncing all accounts');
   }
 }
 
@@ -63,8 +63,8 @@ export const sync = async () => {
         logger.info(`Loading budget ${syncBudgetId}...`);
         await loadBudget(syncBudgetId);
         logger.info(`Budget ${syncBudgetId} loaded successfully.`);
-      } catch (err) {
-        logger.error({ err }, `Error loading budget ${syncBudgetId}`);
+      } catch (error) {
+        logger.error({ error }, `Error loading budget ${syncBudgetId}`);
       }
     });
     const syncTasks = env.ACTUAL_BUDGET_SYNC_IDS.map(async (budgetId, index) => {
@@ -77,8 +77,8 @@ export const sync = async () => {
           await downloadBudget(budgetId);
         }
         logger.info(`Budget ${budgetId} downloaded successfully.`);
-      } catch (err) {
-        logger.error({ err }, `Error downloading budget ${budgetId}`);
+      } catch (error) {
+        logger.error({ error }, `Error downloading budget ${budgetId}`);
       }
     });
     await Promise.all([...tasks, ...syncTasks]);
@@ -86,11 +86,11 @@ export const sync = async () => {
       logger.info('Syncing accounts...');
       await syncAllAccounts();
       logger.info('Accounts synced successfully.');
-    } catch (err) {
-      logger.error({ err }, 'Error in syncing accounts.');
+    } catch (error) {
+      logger.error({ error }, 'Error in syncing accounts.');
     }
-  } catch (err) {
-    logger.error({ err }, 'Error starting the service.');
+  } catch (error) {
+    logger.error({ error }, 'Error starting the service.');
   } finally {
     logger.info('Shutting down...');
     await shutdown();
@@ -106,19 +106,19 @@ export async function listSubDirectories(directory: string) {
 export async function getSyncIdMaps(dataDir: string) {
   logger.info('Getting sync id to budget id map...');
   // Unfortunately Actual Node.js api doesn't provide functionality to get the
-  // budget id associated to the sync id, this is a hack to do that
+  // Budget id associated to the sync id, this is a hack to do that
   try {
     const directories = await listSubDirectories(dataDir);
     const syncIdToBudgetId: Record<string, string> = {};
     const tasks = directories.map(async (subDir) => {
-      const metadata = JSON.parse(await readFile(join(dataDir, subDir, 'metadata.json'), 'utf-8'));
+      const metadata = JSON.parse(await readFile(join(dataDir, subDir, 'metadata.json'), 'utf8'));
       syncIdToBudgetId[metadata.groupId] = metadata.id;
     });
     await Promise.all(tasks);
     logger.info('Sync id to budget id map created successfully.');
     return syncIdToBudgetId;
-  } catch (err) {
-    logger.error({ err }, 'Error creating map from sync id to budget id');
-    throw err;
+  } catch (error) {
+    logger.error({ error }, 'Error creating map from sync id to budget id');
+    throw error;
   }
 }

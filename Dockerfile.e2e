@@ -18,8 +18,9 @@ COPY package.json pnpm-lock.yaml ./
 
 # Enable pnpm and install dependencies
 # The pnpm.onlyBuiltDependencies config in package.json allows better-sqlite3 build scripts
+# Use --ignore-scripts to skip lefthook install (requires git which isn't needed in E2E container)
 RUN corepack enable
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy source files
 COPY . .

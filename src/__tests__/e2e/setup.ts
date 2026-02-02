@@ -247,16 +247,26 @@ export async function getSyncIdMaps(dataDir: string): Promise<Record<string, str
     const syncIdToBudgetId: Record<string, string> = {};
 
     const tasks = directories.map(async (subDir) => {
+      const metadataPath = join(dataDir, subDir, 'metadata.json');
       try {
-        const metadataPath = join(dataDir, subDir, 'metadata.json');
         const metadataContent = await readFile(metadataPath, 'utf8');
-        const metadata = JSON.parse(metadataContent);
+        let metadata;
+        try {
+          metadata = JSON.parse(metadataContent);
+        } catch (parseError) {
+          console.log(
+            `  Skipping ${subDir}: invalid JSON in ${metadataPath} (${parseError instanceof Error ? parseError.message : parseError})`,
+          );
+          return;
+        }
         // GroupId is the sync ID, id is the budget ID
         syncIdToBudgetId[metadata.groupId] = metadata.id;
         console.log(`  Found mapping: syncId=${metadata.groupId} -> budgetId=${metadata.id}`);
-      } catch {
-        // Skip directories without metadata.json
-        console.log(`  Skipping ${subDir}: no valid metadata.json`);
+      } catch (error) {
+        // Skip directories without metadata.json or with read errors
+        console.log(
+          `  Skipping ${subDir}: ${error instanceof Error ? error.message : 'no valid metadata.json'}`,
+        );
       }
     });
 
@@ -363,8 +373,10 @@ export async function fetchFreshSimpleFinToken(): Promise<string> {
 
   const html = await response.text();
 
-  // Look for base64-encoded tokens that decode to SimpleFIN claim URLs
-  // Pattern: starts with aHR0 (base64 for "http") and contains claim URL pattern
+  // Look for base64-encoded tokens that decode to SimpleFIN claim URLs.
+  // SimpleFIN embeds claim URLs as base64 strings starting with "http", so the
+  // base64-encoded form always begins with "aHR0" (base64 for "http").
+  // We anchor the regex on this prefix to avoid matching arbitrary base64 fragments.
   const tokenPattern = /aHR0[A-Za-z0-9+/]+=*/g;
   const matches = html.match(tokenPattern);
 

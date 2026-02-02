@@ -53,9 +53,13 @@ services:
       - MOCK_SIMPLEFIN_PORT=8080
       - MOCK_SIMPLEFIN_URL=http://mock-simplefin:8080
       - MOCK_SIMPLEFIN_ACCESS_KEY=http://test:test123@mock-simplefin:8080/
-      # Real SimpleFIN tokens (for multi-budget tests)
-      # These are demo tokens from beta-bridge.simplefin.org
-      # Set SIMPLEFIN_ACCESS_KEY_1/2 if tokens have been pre-claimed
+      # Real SimpleFIN tokens (for multi-budget tests with beta-bridge.simplefin.org)
+      # SIMPLEFIN_SETUP_TOKEN: Base64-encoded claim URL (e.g., aHR0cHM6Ly9iZXRh...)
+      #   - One-time use token that must be claimed to get an access key
+      #   - Obtained from SimpleFIN developer portal
+      # SIMPLEFIN_ACCESS_KEY: Pre-claimed access URL with embedded credentials
+      #   - Format: https://username:password@bridge.simplefin.org/simplefin/
+      #   - Use this if token was already claimed
       - SIMPLEFIN_SETUP_TOKEN_1=${SIMPLEFIN_SETUP_TOKEN_1:-}
       - SIMPLEFIN_SETUP_TOKEN_2=${SIMPLEFIN_SETUP_TOKEN_2:-}
       - SIMPLEFIN_ACCESS_KEY_1=${SIMPLEFIN_ACCESS_KEY_1:-}

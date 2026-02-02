@@ -41,8 +41,23 @@ function validateAuth(authHeader: string | undefined, config: MockSimpleFinConfi
   }
 
   const base64Credentials = authHeader.slice(6);
-  const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
-  const [username, password] = credentials.split(':');
+
+  let credentials: string;
+  try {
+    credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
+  } catch {
+    // Malformed base64 credentials
+    return false;
+  }
+
+  const separatorIndex = credentials.indexOf(':');
+  if (separatorIndex === -1) {
+    // Missing "username:password" separator
+    return false;
+  }
+
+  const username = credentials.slice(0, separatorIndex);
+  const password = credentials.slice(separatorIndex + 1);
 
   return username === config.username && password === config.password;
 }

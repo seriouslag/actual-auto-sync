@@ -96,6 +96,9 @@ export const accounts: Record<string, MockAccount> = {
   },
 };
 
+// Store original transaction data for reset functionality
+const originalTransactionData: Record<string, MockTransaction[]> = {};
+
 // Transactions per account
 export const transactions: Record<string, MockTransaction[]> = {
   'ACT-001': [
@@ -266,21 +269,48 @@ export function addTestTransactions(accountId: string, newTransactions: MockTran
   transactions[accountId].push(...newTransactions);
 }
 
+// Base account IDs that should be preserved/reset
+const BASE_ACCOUNT_IDS = ['ACT-001', 'ACT-002', 'ACT-003', 'ACT-004'];
+
+// Initialize original transaction data (deep copy)
+function initializeOriginalData(): void {
+  if (Object.keys(originalTransactionData).length === 0) {
+    BASE_ACCOUNT_IDS.forEach((id) => {
+      if (transactions[id]) {
+        originalTransactionData[id] = JSON.parse(JSON.stringify(transactions[id]));
+      }
+    });
+  }
+}
+
+// Call initialization immediately
+initializeOriginalData();
+
 /**
- * Reset all fixtures to default state
+ * Reset all fixtures to default state.
+ * This removes dynamically added accounts/transactions and restores
+ * the original transaction arrays for base accounts.
  */
 export function resetFixtures(): void {
-  // Reset accounts to original state
+  // Reset accounts - remove dynamically added ones
   Object.keys(accounts).forEach((key) => {
-    if (!['ACT-001', 'ACT-002', 'ACT-003', 'ACT-004'].includes(key)) {
+    if (!BASE_ACCOUNT_IDS.includes(key)) {
       delete accounts[key];
     }
   });
 
-  // Reset transactions to original state
+  // Reset transactions - remove dynamically added accounts
   Object.keys(transactions).forEach((key) => {
-    if (!['ACT-001', 'ACT-002', 'ACT-003', 'ACT-004'].includes(key)) {
+    if (!BASE_ACCOUNT_IDS.includes(key)) {
       delete transactions[key];
+    }
+  });
+
+  // Restore original transaction arrays for base accounts
+  // This handles the case where tests pushed items to existing arrays
+  BASE_ACCOUNT_IDS.forEach((id) => {
+    if (originalTransactionData[id]) {
+      transactions[id] = JSON.parse(JSON.stringify(originalTransactionData[id]));
     }
   });
 }

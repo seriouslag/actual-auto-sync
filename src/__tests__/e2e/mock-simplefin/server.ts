@@ -190,7 +190,7 @@ export function startMockSimpleFinServer(
 
     server.listen(finalConfig.port, () => {
       const url = `http://localhost:${finalConfig.port}`;
-      const accessKey = `https://${finalConfig.username}:${finalConfig.password}@localhost:${finalConfig.port}/`;
+      const accessKey = `http://${finalConfig.username}:${finalConfig.password}@localhost:${finalConfig.port}/`;
 
       console.log(`Mock SimpleFIN server started at ${url}`);
       console.log(`Access key: ${accessKey}`);

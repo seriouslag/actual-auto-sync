@@ -54,7 +54,7 @@ describe('E2E: Mock SimpleFIN Server', () => {
   it('should have mock SimpleFIN server running', async () => {
     // Verify the mock server is accessible
     expect(mockServerContext.url).toContain('http://localhost:9001');
-    expect(mockServerContext.accessKey).toMatch(/^https:\/\/.*:.*@.*\/$/);
+    expect(mockServerContext.accessKey).toMatch(/^http:\/\/.*:.*@.*\/$/);
 
     // Test the mock server health endpoint
     const response = await fetch(`${mockServerContext.url}/health`);
@@ -68,7 +68,7 @@ describe('E2E: Mock SimpleFIN Server', () => {
     const { accessKey } = mockServerContext;
 
     // Parse credentials from access key
-    const match = accessKey.match(/https:\/\/(.+):(.+)@(.+)\//);
+    const match = accessKey.match(/http:\/\/(.+):(.+)@(.+)\//);
     expect(match).not.toBeNull();
 
     const [, username, password, host] = match!;
@@ -99,7 +99,7 @@ describe('E2E: Mock SimpleFIN Server', () => {
     const { accessKey } = mockServerContext;
 
     // Parse credentials from access key
-    const match = accessKey.match(/https:\/\/(.+):(.+)@(.+)\//);
+    const match = accessKey.match(/http:\/\/(.+):(.+)@(.+)\//);
     const [, username, password, host] = match!;
     const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 
@@ -173,7 +173,7 @@ describe('E2E: Transaction Fixtures', () => {
   it('should have pending and booked transactions', async () => {
     const { accessKey } = mockServerContext;
 
-    const match = accessKey.match(/https:\/\/(.+):(.+)@(.+)\//);
+    const match = accessKey.match(/http:\/\/(.+):(.+)@(.+)\//);
     const [, username, password, host] = match!;
     const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 
@@ -199,7 +199,7 @@ describe('E2E: Transaction Fixtures', () => {
   it('should filter transactions by start date', async () => {
     const { accessKey } = mockServerContext;
 
-    const match = accessKey.match(/https:\/\/(.+):(.+)@(.+)\//);
+    const match = accessKey.match(/http:\/\/(.+):(.+)@(.+)\//);
     const [, username, password, host] = match!;
     const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 
@@ -253,7 +253,7 @@ describe('E2E: Multiple Accounts', () => {
   it('should handle multiple mock accounts from different banks', async () => {
     const { accessKey } = mockServerContext;
 
-    const match = accessKey.match(/https:\/\/(.+):(.+)@(.+)\//);
+    const match = accessKey.match(/http:\/\/(.+):(.+)@(.+)\//);
     const [, username, password, host] = match!;
     const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 
@@ -276,7 +276,7 @@ describe('E2E: Multiple Accounts', () => {
   it('should batch request multiple accounts', async () => {
     const { accessKey } = mockServerContext;
 
-    const match = accessKey.match(/https:\/\/(.+):(.+)@(.+)\//);
+    const match = accessKey.match(/http:\/\/(.+):(.+)@(.+)\//);
     const [, username, password, host] = match!;
     const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 
@@ -453,7 +453,7 @@ describe('E2E: Error Handling', () => {
     const { accessKey } = mockServerContext;
 
     // Parse credentials from access key
-    const match = accessKey.match(/https:\/\/(.+):(.+)@(.+)\//);
+    const match = accessKey.match(/http:\/\/(.+):(.+)@(.+)\//);
     const [, username, password, host] = match!;
     const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 
@@ -475,7 +475,7 @@ describe('E2E: Error Handling', () => {
   it('should handle unknown endpoint', async () => {
     const { accessKey } = mockServerContext;
 
-    const match = accessKey.match(/https:\/\/(.+):(.+)@(.+)\//);
+    const match = accessKey.match(/http:\/\/(.+):(.+)@(.+)\//);
     const [, username, password, host] = match!;
     const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 

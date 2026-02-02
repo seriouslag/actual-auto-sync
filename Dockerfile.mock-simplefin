@@ -9,7 +9,7 @@
 # Run:
 #   docker run -p 8080:8080 mock-simplefin
 
-FROM node:20-alpine
+FROM node:24-slim
 
 WORKDIR /app
 
@@ -34,9 +34,12 @@ ENV MOCK_SIMPLEFIN_PASSWORD=test123
 # Expose the port
 EXPOSE 8080
 
+# Install curl for health check
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+  CMD curl -f http://localhost:8080/health || exit 1
 
 # Run the mock server with ts-node ESM loader
 CMD ["node", "--loader", "ts-node/esm", "src/__tests__/e2e/mock-simplefin/standalone.ts"]

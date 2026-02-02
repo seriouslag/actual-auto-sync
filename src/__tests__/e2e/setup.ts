@@ -598,7 +598,7 @@ export async function createBudgetWithSimpleFin(
  */
 export function getMockSimpleFinAccessKey(host = 'localhost'): string {
   const { port, username, password } = MOCK_SIMPLEFIN_CONFIG;
-  return `https://${username}:${password}@${host}:${port}/`;
+  return `http://${username}:${password}@${host}:${port}/`;
 }
 
 /**

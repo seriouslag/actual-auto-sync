@@ -84,9 +84,10 @@ Environment variables are validated at startup using `@t3-oss/env-core` with Zod
 
 **E2E tests** (`src/__tests__/e2e/`) run against a real Actual Budget server:
 
-- `docker-compose.e2e.yml` spins up an `actualbudget/actual-server` container
+- `docker-compose.e2e.yml` spins up an `actualbudget/actual-server` container and a mock SimpleFIN server
 - Tests create fresh budgets/accounts/transactions programmatically via `@actual-app/api`
-- `runBankSync()` is mocked since real bank credentials aren't available in CI
+- `runBankSync()` is called on unlinked accounts (completes without fetching transactions)
+- The mock SimpleFIN server provides test fixtures for bank sync integration testing
 - Use `pnpm test:e2e:docker` for the full Docker-based test flow
 
 ## ESM Configuration

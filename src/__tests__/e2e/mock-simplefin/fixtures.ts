@@ -272,12 +272,35 @@ export function addTestTransactions(accountId: string, newTransactions: MockTran
 // Base account IDs that should be preserved/reset
 const BASE_ACCOUNT_IDS = ['ACT-001', 'ACT-002', 'ACT-003', 'ACT-004'];
 
-// Initialize original transaction data (deep copy)
+/**
+ * Deep clone a transaction, preserving Date objects.
+ * JSON.stringify/parse converts Dates to strings, breaking date comparisons.
+ */
+function cloneTransaction(txn: MockTransaction): MockTransaction {
+  return {
+    id: txn.id,
+    posted: new Date(txn.posted),
+    amount: txn.amount,
+    payee: txn.payee,
+    description: txn.description,
+    pending: txn.pending,
+    transactedAt: txn.transactedAt ? new Date(txn.transactedAt) : undefined,
+  };
+}
+
+/**
+ * Deep clone an array of transactions
+ */
+function cloneTransactions(txns: MockTransaction[]): MockTransaction[] {
+  return txns.map(cloneTransaction);
+}
+
+// Initialize original transaction data (deep copy preserving Date objects)
 function initializeOriginalData(): void {
   if (Object.keys(originalTransactionData).length === 0) {
     BASE_ACCOUNT_IDS.forEach((id) => {
       if (transactions[id]) {
-        originalTransactionData[id] = JSON.parse(JSON.stringify(transactions[id]));
+        originalTransactionData[id] = cloneTransactions(transactions[id]);
       }
     });
   }
@@ -310,7 +333,7 @@ export function resetFixtures(): void {
   // This handles the case where tests pushed items to existing arrays
   BASE_ACCOUNT_IDS.forEach((id) => {
     if (originalTransactionData[id]) {
-      transactions[id] = JSON.parse(JSON.stringify(originalTransactionData[id]));
+      transactions[id] = cloneTransactions(originalTransactionData[id]);
     }
   });
 }

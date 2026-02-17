@@ -1,3 +1,6 @@
 {
-  "cSpell.words": ["cronstrue"]
+  "cSpell.words": ["cronstrue"],
+  "yaml.format.singleQuote": false,
+  "yaml.format.bracketSpacing": true,
+  "yaml.format.trailingComma": true
 }

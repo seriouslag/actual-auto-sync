@@ -1,30 +1,30 @@
-import { createEnv } from "@t3-oss/env-core";
-import { config } from "dotenv";
-import { IANAZone } from "luxon";
-import { pino } from "pino";
-import { z } from "zod";
+import { createEnv } from '@t3-oss/env-core';
+import { config } from 'dotenv';
+import { IANAZone } from 'luxon';
+import { pino } from 'pino';
+import { z } from 'zod';
 
 const logger = pino({
-  level: "info",
+  level: 'info',
 });
 
 try {
   config();
-  logger.info("Loaded environment variables from .env file.");
+  logger.info('Loaded environment variables from .env file.');
 } catch {
-  logger.info("No .env file found. Using system environment variables.");
+  logger.info('No .env file found. Using system environment variables.');
 }
 
 export const budgetIdSchema = z
   .string()
-  .transform((value) => value.split(","))
+  .transform((value) => value.split(','))
   .pipe(z.string().array());
 
 export const encryptionPasswordSchema = z
   .string()
-  .default("")
+  .default('')
   .optional()
-  .transform((value) => value?.split(","))
+  .transform((value) => value?.split(','))
   .pipe(z.string().array().optional())
   .default([]);
 
@@ -32,7 +32,7 @@ export const encryptionPasswordSchema = z
  * Default to once a day at 1am
  * @default "0 1 * * *"
  */
-export const cronScheduleSchema = z.string().trim().min(9).default("0 1 * * *");
+export const cronScheduleSchema = z.string().trim().min(9).default('0 1 * * *');
 
 /**
  * Default to false
@@ -43,23 +43,25 @@ export const runOnStartSchema = z
   .optional()
   .default(false)
   .transform((value) => {
-    const loweredValue =
-      typeof value === "string" ? value.trim().toLowerCase() : value;
+    const loweredValue = typeof value === 'string' ? value.trim().toLowerCase() : value;
     switch (loweredValue) {
       case true:
-      case "on":
-      case "yes":
-      case "1":
-      case "true":
+      case 'on':
+      case 'yes':
+      case '1':
+      case 'true': {
         return true;
+      }
       case false:
-      case "off":
-      case "no":
-      case "0":
-      case "false":
+      case 'off':
+      case 'no':
+      case '0':
+      case 'false': {
         return false;
-      default:
+      }
+      default: {
         return false;
+      }
     }
   });
 
@@ -67,10 +69,7 @@ export const runOnStartSchema = z
  * Default to info
  * @default "info"
  */
-export const logLevelSchema = z
-  .enum(["info", "debug", "warn", "error"])
-  .optional()
-  .default("info");
+export const logLevelSchema = z.enum(['info', 'debug', 'warn', 'error']).optional().default('info');
 
 /**
  * @default "Etc/UTC"
@@ -79,9 +78,9 @@ export const timezoneSchema = z
   .string()
   .trim()
   .refine((tz) => IANAZone.isValidZone(tz), {
-    message: "Invalid IANA time zone (e.g., Etc/UTC, America/New_York).",
+    message: 'Invalid IANA time zone (e.g., Etc/UTC, America/New_York).',
   })
-  .default("Etc/UTC");
+  .default('Etc/UTC');
 
 /**
  * Server URL
@@ -109,7 +108,7 @@ export const env = createEnv({
    * The prefix that client-side variables must have. This is enforced both at
    * a type-level and at runtime.
    */
-  clientPrefix: "PUBLIC_",
+  clientPrefix: 'PUBLIC_',
 
   client: {},
 

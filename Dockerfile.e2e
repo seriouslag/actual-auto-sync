@@ -1,0 +1,34 @@
+# E2E Test Dockerfile
+FROM node:24.13.0-slim
+
+# Install build dependencies for native modules (better-sqlite3)
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+WORKDIR /app
+
+# Copy package files first for better layer caching
+COPY package.json pnpm-lock.yaml ./
+
+# Enable pnpm and install dependencies
+# The pnpm.onlyBuiltDependencies config in package.json allows better-sqlite3 build scripts
+# Use --ignore-scripts to skip lefthook install (requires git which isn't needed in E2E container)
+# Then rebuild better-sqlite3 native module which requires compilation
+RUN corepack enable
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm rebuild better-sqlite3
+
+# Copy source files
+COPY . .
+
+# Create e2e data directory
+RUN mkdir -p /app/e2e-data
+
+# Run e2e tests
+CMD ["pnpm", "test:e2e"]

@@ -1,43 +1,62 @@
 {
   "name": "@seriouslag/actual-auto-sync",
-  "description": "A background service that automatically syncs your Actual Budget accounts on a scheduled basis.",
   "version": "0.0.1",
-  "main": "src/index.ts",
-  "packageManager": "pnpm@10.21.0",
+  "description": "A background service that automatically syncs your Actual Budget accounts on a scheduled basis.",
+  "keywords": [
+    "actual",
+    "auto",
+    "bank",
+    "budget",
+    "docker",
+    "sync"
+  ],
   "license": "MIT",
   "type": "module",
+  "main": "src/index.ts",
   "scripts": {
     "start": "node --loader ts-node/esm src/index.ts",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "build": "tsc"
+    "test:e2e": "vitest run --config vitest.config.e2e.mts",
+    "test:e2e:docker": "docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from e2e-tests",
+    "build": "tsc",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "check": "pnpm lint && pnpm format:check && pnpm build",
+    "prepare": "node -e \"const fs=require('node:fs'); const cp=require('node:child_process'); if (fs.existsSync('.git')) cp.execSync('lefthook install', { stdio: 'inherit' });\""
   },
-  "keywords": [
-    "actual",
-    "budget",
-    "bank",
-    "sync",
-    "auto",
-    "docker"
-  ],
   "dependencies": {
     "@actual-app/api": "^26.2.0",
     "@actual-app/crdt": "^2.1.0",
-    "@t3-oss/env-core": "^0.13.8",
-    "better-sqlite3": "^12.4.1",
-    "cron": "^4.3.4",
+    "@t3-oss/env-core": "^0.13.10",
+    "better-sqlite3": "^12.6.0",
+    "cron": "^4.4.0",
     "cronstrue": "^3.9.0",
     "dotenv": "^17.2.3",
     "luxon": "^3.7.2",
-    "pino": "^10.1.0",
-    "zod": "^4.1.12"
+    "pino": "^10.2.0",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@types/luxon": "^3.7.1",
-    "@types/node": "^24.10.0",
-    "@vitest/coverage-v8": "^4.0.8",
+    "@types/node": "^25.0.9",
+    "@vitest/coverage-v8": "^4.0.17",
+    "eslint-plugin-unused-imports": "^4.3.0",
+    "lefthook": "^2.0.15",
+    "oxfmt": "^0.24.0",
+    "oxlint": "^1.39.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.17"
+  },
+  "packageManager": "pnpm@10.21.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "lefthook"
+    ]
   }
 }

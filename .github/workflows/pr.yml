@@ -4,6 +4,11 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel any in-progress runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -14,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "24.11.0"
+          node-version: '24.11.0'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
@@ -38,11 +43,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
       - name: Build
         run: pnpm build
 
-      - name: Run tests
+      - name: Run unit tests
         run: pnpm test:coverage
+
+      - name: Run e2e tests
+        run: pnpm test:e2e:docker
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

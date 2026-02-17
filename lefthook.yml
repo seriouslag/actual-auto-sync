@@ -1,0 +1,8 @@
+pre-push:
+  commands:
+    lint:
+      run: pnpm lint
+    format:
+      run: pnpm format:check
+    build:
+      run: pnpm build

@@ -404,5 +404,14 @@ describe('utils.ts functions', () => {
       expect(init).toHaveBeenCalled();
       expect(shutdown).toHaveBeenCalled();
     });
+
+    it('should log shutdown errors without throwing', async () => {
+      const error = new Error('Shutdown failed');
+      vi.mocked(shutdown).mockRejectedValueOnce(error);
+
+      await expect(sync()).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith({ error }, 'Error shutting down the service.');
+    });
   });
 });

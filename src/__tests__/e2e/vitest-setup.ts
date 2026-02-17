@@ -6,18 +6,24 @@
  * local files, but these are not actual test failures.
  */
 
-// Intercept unhandled rejections from @actual-app/api
-process.on('unhandledRejection', (reason, promise) => {
-  const stack = reason instanceof Error ? reason.stack : String(reason);
+function isActualApiRejection(reason: unknown): boolean {
+  if (!(reason instanceof Error)) {
+    return false;
+  }
 
-  // Suppress rejections from @actual-app/api internal operations
-  if (
-    stack?.includes('actual-app') ||
-    stack?.includes('download-budget') ||
-    stack?.includes('bundle.api.js')
-  ) {
+  // Prefer stable fields first and only use stack as a fallback signal.
+  if (reason.name === 'AbortError' && reason.message.includes('download-budget')) {
+    return true;
+  }
+
+  const stack = reason.stack ?? '';
+  return stack.includes('/node_modules/@actual-app/api/') || stack.includes('bundle.api.js');
+}
+
+// Intercept unhandled rejections from @actual-app/api
+process.on('unhandledRejection', (reason) => {
+  if (isActualApiRejection(reason)) {
     console.log('[E2E Setup] Suppressed unhandled rejection from @actual-app/api');
-    // Prevent the rejection from bubbling up
     return;
   }
 

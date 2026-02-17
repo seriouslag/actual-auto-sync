@@ -469,6 +469,14 @@ export interface SimpleFinTokenConfig {
   accessKey?: string;
 }
 
+function buildSimpleFinAuthConfig(accessKey: string): { baseUrl: string; authHeader: string } {
+  const url = new URL(accessKey);
+  const basePath = url.pathname.endsWith('/') ? url.pathname.slice(0, -1) : url.pathname;
+  const baseUrl = `${url.protocol}//${url.host}${basePath}`;
+  const authHeader = `Basic ${Buffer.from(`${url.username}:${url.password}`).toString('base64')}`;
+  return { baseUrl, authHeader };
+}
+
 /**
  * Fetch available accounts from SimpleFIN using an access key.
  * This is useful for discovering what accounts are available before linking.
@@ -490,20 +498,8 @@ export async function fetchSimpleFinAccountsWithAccessKey(accessKey: string): Pr
     };
   }[];
 }> {
-  // Parse credentials from access key URL
-  // Format: https://username:password@host/simplefin/
-  const url = new URL(accessKey);
-  const username = url.username;
-  const password = url.password;
-
-  // Build base URL preserving the path (e.g., /simplefin/)
-  // Remove trailing slash to avoid double slashes
-  const basePath = url.pathname.endsWith('/') ? url.pathname.slice(0, -1) : url.pathname;
-  const baseUrl = `${url.protocol}//${url.host}${basePath}`;
-
-  const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
-
-  console.log(`Fetching SimpleFIN accounts from: ${url.protocol}//${url.host}${basePath}/accounts`);
+  const { baseUrl, authHeader } = buildSimpleFinAuthConfig(accessKey);
+  console.log(`Fetching SimpleFIN accounts from: ${baseUrl}/accounts`);
 
   const response = await fetch(`${baseUrl}/accounts?balances-only=1`, {
     headers: { Authorization: authHeader },

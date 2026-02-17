@@ -3,6 +3,7 @@ import cronstrue from 'cronstrue';
 import { readFile, readdir } from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { env } from '../env.js';
 import { logger } from '../logger.js';
 import {
   formatCronSchedule,
@@ -58,6 +59,10 @@ vi.mock('../logger.js', () => ({
 }));
 
 describe('utils.ts functions', () => {
+  const mutableEnv = env as unknown as {
+    ACTUAL_BUDGET_SYNC_IDS: string[];
+    ENCRYPTION_PASSWORDS: string[];
+  };
   let cronstrueMock: { toString: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
@@ -219,6 +224,8 @@ describe('utils.ts functions', () => {
       cronstrueMock.toString.mockReturnValue('every day at midnight');
 
       // Mock getSyncIdMaps to return a mapping that matches the env.ACTUAL_BUDGET_SYNC_IDS
+      mutableEnv.ACTUAL_BUDGET_SYNC_IDS = ['budget1', 'budget2'];
+      mutableEnv.ENCRYPTION_PASSWORDS = ['pass1', 'pass2'];
       vi.mocked(readdir).mockResolvedValue([
         { name: 'dir1', isDirectory: () => true },
         { name: 'dir2', isDirectory: () => true },
@@ -239,6 +246,70 @@ describe('utils.ts functions', () => {
         password: 'test-password',
       });
       expect(cronstrueMock.toString).toHaveBeenCalledWith('0 0 * * *');
+      expect(shutdown).toHaveBeenCalled();
+    });
+
+    it('should load local budgets for matching sync ids', async () => {
+      vi.mocked(readFile).mockReset();
+      vi.mocked(readFile)
+        .mockResolvedValueOnce(JSON.stringify({ groupId: 'budget1', id: 'local-budget-1' }))
+        .mockResolvedValueOnce(JSON.stringify({ groupId: 'budget2', id: 'local-budget-2' }));
+
+      await sync();
+
+      expect(loadBudget).toHaveBeenCalledWith('local-budget-1');
+      expect(loadBudget).toHaveBeenCalledWith('local-budget-2');
+    });
+
+    it('should skip loading budgets when sync ids are not configured', async () => {
+      vi.mocked(readFile).mockReset();
+      vi.mocked(readFile)
+        .mockResolvedValueOnce(JSON.stringify({ groupId: 'other-sync', id: 'local-budget-1' }))
+        .mockResolvedValueOnce(JSON.stringify({ groupId: 'another-sync', id: 'local-budget-2' }));
+
+      await sync();
+
+      expect(loadBudget).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        'Sync id other-sync not in ACTUAL_BUDGET_SYNC_IDS, skipping...',
+      );
+    });
+
+    it('should download budgets without encryption password when password is missing', async () => {
+      mutableEnv.ENCRYPTION_PASSWORDS = ['pass1'];
+
+      await sync();
+
+      expect(downloadBudget).toHaveBeenCalledWith('budget1', { password: 'pass1' });
+      expect(downloadBudget).toHaveBeenCalledWith('budget2');
+    });
+
+    it('should log budget loading errors and continue', async () => {
+      const error = new Error('Load failed');
+      vi.mocked(readFile).mockReset();
+      vi.mocked(readFile)
+        .mockResolvedValueOnce(JSON.stringify({ groupId: 'budget1', id: 'local-budget-1' }))
+        .mockResolvedValueOnce(JSON.stringify({ groupId: 'budget2', id: 'local-budget-2' }));
+      vi.mocked(loadBudget).mockRejectedValueOnce(error);
+
+      await sync();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ error }),
+        expect.stringContaining('Error loading budget'),
+      );
+      expect(loadBudget).toHaveBeenCalledWith('local-budget-2');
+      expect(shutdown).toHaveBeenCalled();
+    });
+
+    it('should log budget download errors and continue', async () => {
+      const error = new Error('Download failed');
+      vi.mocked(downloadBudget).mockRejectedValueOnce(error);
+
+      await sync();
+
+      expect(logger.error).toHaveBeenCalledWith({ error }, 'Error downloading budget budget1');
+      expect(downloadBudget).toHaveBeenCalledWith('budget2', { password: 'pass2' });
       expect(shutdown).toHaveBeenCalled();
     });
 

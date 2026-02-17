@@ -261,4 +261,32 @@ describe('Environment Configuration', () => {
       }
     });
   });
+
+  describe('Module initialization', () => {
+    it('should log fallback message when dotenv config throws', async () => {
+      vi.resetModules();
+
+      const info = vi.fn();
+      const createEnv = vi.fn(() => ({}));
+
+      vi.doMock('dotenv', () => ({
+        config: vi.fn(() => {
+          throw new Error('No .env file');
+        }),
+      }));
+      vi.doMock('pino', () => ({
+        pino: vi.fn(() => ({
+          info,
+        })),
+      }));
+      vi.doMock('@t3-oss/env-core', () => ({
+        createEnv,
+      }));
+
+      await import('../env.js');
+
+      expect(info).toHaveBeenCalledWith('No .env file found. Using system environment variables.');
+      expect(createEnv).toHaveBeenCalledTimes(1);
+    });
+  });
 });

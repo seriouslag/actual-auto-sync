@@ -53,7 +53,7 @@ export const sync = async () => {
 
     const tasks = Object.entries(syncIdToBudgetId).map(async ([syncId, budgetId]) => {
       // If the sync id is not in the ACTUAL_BUDGET_SYNC_IDS array, skip it
-      if (!(syncId in env.ACTUAL_BUDGET_SYNC_IDS)) {
+      if (!env.ACTUAL_BUDGET_SYNC_IDS.includes(syncId)) {
         logger.info(`Sync id ${syncId} not in ACTUAL_BUDGET_SYNC_IDS, skipping...`);
         return;
       }
@@ -82,13 +82,9 @@ export const sync = async () => {
       }
     });
     await Promise.all([...tasks, ...syncTasks]);
-    try {
-      logger.info('Syncing accounts...');
-      await syncAllAccounts();
-      logger.info('Accounts synced successfully.');
-    } catch (error) {
-      logger.error({ error }, 'Error in syncing accounts.');
-    }
+    logger.info('Syncing accounts...');
+    await syncAllAccounts();
+    logger.info('Accounts synced successfully.');
   } catch (error) {
     logger.error({ error }, 'Error starting the service.');
   } finally {

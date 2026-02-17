@@ -138,6 +138,13 @@ async function shutdownApi() {
 
 export const sync = async () => {
   logger.info('Starting service...');
-  await runSyncCycle();
-  await shutdownApi();
+  try {
+    await runSyncCycle();
+  } finally {
+    try {
+      await shutdownApi();
+    } catch (error) {
+      logger.error({ error }, 'Error shutting down the service.');
+    }
+  }
 };

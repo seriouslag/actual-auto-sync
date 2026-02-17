@@ -612,8 +612,37 @@ export async function createBudgetWithSimpleFin(
   await setSimpleFinCredentials(accessKey);
   console.log('SimpleFIN credentials set');
 
+  const availableSimpleFinAccounts = await getSimpleFinAccounts();
+  const matchingSimpleFinAccount = availableSimpleFinAccounts.accounts.find(
+    (account) => account.id === simpleFinAccountId,
+  );
+  const linkedSimpleFinAccount = matchingSimpleFinAccount ?? {
+    id: simpleFinAccountId,
+    name: simpleFinAccountName,
+    balance: 0,
+    org: {
+      id: '',
+      name: institution,
+      domain: orgDomain,
+    },
+  };
+  if (!matchingSimpleFinAccount) {
+    const availableAccountIds = availableSimpleFinAccounts.accounts.map((account) => account.id);
+    console.log(
+      `SimpleFIN account ${simpleFinAccountId} not found from discovery. Falling back to provided metadata. Available accounts: ${availableAccountIds.join(', ') || '(none)'}`,
+    );
+  }
+
   // Link the account to SimpleFIN
-  await linkAccountToSimpleFin(createdAccountId, simpleFinAccountId, institution, orgDomain);
+  await linkAccountToSimpleFin(
+    createdAccountId,
+    linkedSimpleFinAccount.id,
+    linkedSimpleFinAccount.org.name || institution,
+    linkedSimpleFinAccount.org.domain || orgDomain,
+    linkedSimpleFinAccount.org.id,
+    linkedSimpleFinAccount.balance,
+    linkedSimpleFinAccount.name,
+  );
   console.log(`Linked account ${createdAccountId} to SimpleFIN account ${simpleFinAccountId}`);
 
   return {
@@ -640,6 +669,9 @@ export async function linkAccountToSimpleFin(
   simpleFinAccountId: string,
   institution: string,
   orgDomain: string,
+  orgId?: string,
+  balance = 0,
+  accountName?: string,
 ): Promise<void> {
   // Use the internal API to link the account
   const { internal } = api as {
@@ -652,10 +684,11 @@ export async function linkAccountToSimpleFin(
   await internal.send('simplefin-accounts-link', {
     externalAccount: {
       account_id: simpleFinAccountId,
-      name: `SimpleFIN Account ${simpleFinAccountId}`,
-      balance: 0,
+      name: accountName || `SimpleFIN Account ${simpleFinAccountId}`,
+      balance,
       institution,
       orgDomain,
+      orgId,
     },
     upgradingId: accountId,
     offBudget: false,
@@ -737,12 +770,20 @@ export async function getSimpleFinAccounts(): Promise<{
     throw new Error('Internal API not available - make sure @actual-app/api is initialized');
   }
 
-  return (await internal.send('simplefin-accounts', {})) as {
-    accounts: {
-      id: string;
-      name: string;
-      balance: number;
-      org: { id: string; name: string; domain: string };
-    }[];
+  const raw = (await internal.send('simplefin-accounts', {})) as {
+    accounts?: unknown;
+    data?: { accounts?: unknown };
   };
+
+  const directAccounts = Array.isArray(raw.accounts) ? raw.accounts : [];
+  const nestedAccounts =
+    !directAccounts.length && Array.isArray(raw.data?.accounts) ? raw.data.accounts : [];
+  const accounts = (directAccounts.length ? directAccounts : nestedAccounts) as {
+    id: string;
+    name: string;
+    balance: number;
+    org: { id: string; name: string; domain: string };
+  }[];
+
+  return { accounts };
 }

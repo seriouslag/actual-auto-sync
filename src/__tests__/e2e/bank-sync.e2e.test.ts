@@ -17,14 +17,15 @@ import {
   E2E_CONFIG,
   MOCK_SIMPLEFIN_CONFIG,
   cleanupDataDir,
-  createBudgetWithSimpleFin,
   daysAgo,
-  getSyncIdMaps,
   getMockSimpleFinAccounts,
   initApi,
+  listSubDirectories,
   mockSimpleFinAccounts,
+  readBudgetMetadata,
   resetMockSimpleFinFixtures,
   seedTestBudget,
+  setSimpleFinCredentials,
   shutdownApi,
   startMockSimpleFinServer,
   stopMockSimpleFinServer,
@@ -432,93 +433,105 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
  * Verifies repeated sync cycles do not duplicate imported transactions.
  */
 describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
-  let mockServerContext: Awaited<ReturnType<typeof startMockSimpleFinServer>>;
-  let budget1SyncId: string;
-  let budget2SyncId: string;
-  const budget1AccountName = `Issue64 Budget 1 Account ${Date.now()}`;
-  const budget2AccountName = `Issue64 Budget 2 Account ${Date.now()}`;
+  let mockServerContext: Awaited<ReturnType<typeof startMockSimpleFinServer>> | undefined;
+  let budget1: { budgetId: string; accountId: string; accountName: string };
+  let budget2: { budgetId: string; accountId: string; accountName: string };
 
   beforeAll(async () => {
-    mockServerContext = await startMockSimpleFinServer({ port: 9006 });
+    let sharedAccessKey = process.env.MOCK_SIMPLEFIN_ACCESS_KEY;
+    if (!sharedAccessKey) {
+      const context = await startMockSimpleFinServer({ port: 9006 });
+      mockServerContext = context;
+      sharedAccessKey = context.accessKey;
+    }
+
     await waitForServer();
     await cleanupDataDir();
     await initApi();
 
-    const sharedAccessKey = mockServerContext.accessKey;
+    const createBudget = async (
+      budgetNamePrefix: string,
+      accountName: string,
+      importedIdPrefix: string,
+    ): Promise<{ budgetId: string; accountId: string; accountName: string }> => {
+      const budgetName = `${budgetNamePrefix}-${Date.now()}`;
+      const today = new Date().toISOString().split('T')[0];
 
-    const budget1 = await createBudgetWithSimpleFin(
-      `issue64-budget-1-${Date.now()}`,
-      sharedAccessKey,
-      'ACT-001',
-      budget1AccountName,
-      'Test Bank',
-      'testbank.com',
+      let accountId = '';
+      await api.runImport(budgetName, async () => {
+        accountId = await api.createAccount({ name: accountName }, 0);
+        await api.addTransactions(accountId, [
+          {
+            date: today,
+            amount: -1200,
+            payee_name: 'Issue64 Seed 1',
+            imported_id: `${importedIdPrefix}-1`,
+          },
+          {
+            date: today,
+            amount: -3400,
+            payee_name: 'Issue64 Seed 2',
+            imported_id: `${importedIdPrefix}-2`,
+          },
+        ]);
+      });
+
+      const directories = await listSubDirectories(E2E_CONFIG.dataDir);
+      const budgetDir = directories.find((directory) => directory.startsWith(budgetName));
+      expect(budgetDir).toBeDefined();
+      let metadata = await readBudgetMetadata(E2E_CONFIG.dataDir, budgetDir!);
+
+      await setSimpleFinCredentials(sharedAccessKey);
+
+      return {
+        budgetId: metadata.id,
+        accountId,
+        accountName,
+      };
+    };
+
+    budget1 = await createBudget(
+      'issue64-budget-1',
+      `Issue64 Budget 1 Account ${Date.now()}`,
+      `issue64-budget1-${Date.now()}`,
     );
-
-    const budget2 = await createBudgetWithSimpleFin(
-      `issue64-budget-2-${Date.now()}`,
-      sharedAccessKey,
-      'ACT-003',
-      budget2AccountName,
-      'Second Bank',
-      'secondbank.com',
+    budget2 = await createBudget(
+      'issue64-budget-2',
+      `Issue64 Budget 2 Account ${Date.now()}`,
+      `issue64-budget2-${Date.now()}`,
     );
-
-    budget1SyncId = budget1.syncId;
-    budget2SyncId = budget2.syncId;
   });
 
   afterAll(async () => {
-    await stopMockSimpleFinServer(mockServerContext.server);
+    if (mockServerContext) {
+      await stopMockSimpleFinServer(mockServerContext.server);
+    }
     await shutdownApi().catch(() => {});
     await cleanupDataDir();
   });
 
-  async function syncBudgetAndGetImportedIds(
-    syncId: string,
-    accountName: string,
-  ): Promise<string[]> {
-    await api.downloadBudget(syncId);
-
-    const syncIdMap = await getSyncIdMaps(E2E_CONFIG.dataDir);
-    const budgetId = syncIdMap[syncId];
-    expect(budgetId).toBeDefined();
-
-    await api.loadBudget(budgetId);
+  async function syncBudgetAndGetImportedIds(budget: {
+    budgetId: string;
+    accountId: string;
+  }): Promise<string[]> {
+    await api.loadBudget(budget.budgetId);
     await api.runBankSync();
-    await api.sync();
 
-    const accounts = await api.getAccounts();
-    const targetAccount = accounts.find((account) => account.name === accountName);
-    expect(targetAccount).toBeDefined();
-
-    const transactions = await api.getTransactions(targetAccount!.id, '2000-01-01', '2100-01-01');
+    const transactions = await api.getTransactions(budget.accountId, '2000-01-01', '2100-01-01');
     return transactions
       .filter((transaction) => transaction.imported_id)
       .map((transaction) => transaction.imported_id!);
   }
 
   it('should not duplicate imported transactions across repeated multi-budget sync cycles', async () => {
-    const cycle1Budget1ImportedIds = await syncBudgetAndGetImportedIds(
-      budget1SyncId,
-      budget1AccountName,
-    );
-    const cycle1Budget2ImportedIds = await syncBudgetAndGetImportedIds(
-      budget2SyncId,
-      budget2AccountName,
-    );
+    const cycle1Budget1ImportedIds = await syncBudgetAndGetImportedIds(budget1);
+    const cycle1Budget2ImportedIds = await syncBudgetAndGetImportedIds(budget2);
 
     expect(cycle1Budget1ImportedIds.length).toBeGreaterThan(0);
     expect(cycle1Budget2ImportedIds.length).toBeGreaterThan(0);
 
-    const cycle2Budget1ImportedIds = await syncBudgetAndGetImportedIds(
-      budget1SyncId,
-      budget1AccountName,
-    );
-    const cycle2Budget2ImportedIds = await syncBudgetAndGetImportedIds(
-      budget2SyncId,
-      budget2AccountName,
-    );
+    const cycle2Budget1ImportedIds = await syncBudgetAndGetImportedIds(budget1);
+    const cycle2Budget2ImportedIds = await syncBudgetAndGetImportedIds(budget2);
 
     const uniqueCycle2Budget1Ids = new Set(cycle2Budget1ImportedIds);
     const uniqueCycle2Budget2Ids = new Set(cycle2Budget2ImportedIds);

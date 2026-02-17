@@ -51,11 +51,11 @@ export const sync = async () => {
 
     const syncIdToBudgetId = await getSyncIdMaps(ACTUAL_DATA_DIR);
 
-    const tasks = Object.entries(syncIdToBudgetId).map(async ([syncId, budgetId]) => {
+    for (const [syncId, budgetId] of Object.entries(syncIdToBudgetId)) {
       // If the sync id is not in the ACTUAL_BUDGET_SYNC_IDS array, skip it
       if (!env.ACTUAL_BUDGET_SYNC_IDS.includes(syncId)) {
         logger.info(`Sync id ${syncId} not in ACTUAL_BUDGET_SYNC_IDS, skipping...`);
-        return;
+        continue;
       }
       logger.info(`Sync id: ${syncId}, Budget id: ${budgetId}`);
       const syncBudgetId = syncIdToBudgetId[syncId];
@@ -66,8 +66,9 @@ export const sync = async () => {
       } catch (error) {
         logger.error({ error }, `Error loading budget ${syncBudgetId}`);
       }
-    });
-    const syncTasks = env.ACTUAL_BUDGET_SYNC_IDS.map(async (budgetId, index) => {
+    }
+
+    for (const [index, budgetId] of env.ACTUAL_BUDGET_SYNC_IDS.entries()) {
       try {
         logger.info(`Downloading budget ${budgetId}...`);
         const password = env.ENCRYPTION_PASSWORDS[index];
@@ -80,8 +81,8 @@ export const sync = async () => {
       } catch (error) {
         logger.error({ error }, `Error downloading budget ${budgetId}`);
       }
-    });
-    await Promise.all([...tasks, ...syncTasks]);
+    }
+
     logger.info('Syncing accounts...');
     await syncAllAccounts();
     logger.info('Accounts synced successfully.');

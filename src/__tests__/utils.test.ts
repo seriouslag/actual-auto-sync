@@ -284,6 +284,51 @@ describe('utils.ts functions', () => {
       expect(downloadBudget).toHaveBeenCalledWith('budget2');
     });
 
+    it('should process budget load and download operations sequentially', async () => {
+      let activeOperations = 0;
+      let maxConcurrentOperations = 0;
+
+      const trackOperation = async () => {
+        activeOperations += 1;
+        maxConcurrentOperations = Math.max(maxConcurrentOperations, activeOperations);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        activeOperations -= 1;
+      };
+
+      vi.mocked(loadBudget).mockImplementation(trackOperation);
+      vi.mocked(downloadBudget).mockImplementation(trackOperation);
+
+      await sync();
+
+      expect(loadBudget).toHaveBeenCalledTimes(2);
+      expect(downloadBudget).toHaveBeenCalledTimes(2);
+      expect(maxConcurrentOperations).toBe(1);
+    });
+
+    it('should avoid startServices race errors when syncing multiple budgets', async () => {
+      let activeDownloads = 0;
+      const raceError = new Error('App: startServices called while services are already running');
+
+      vi.mocked(downloadBudget).mockImplementation(async () => {
+        activeDownloads += 1;
+        if (activeDownloads > 1) {
+          activeDownloads -= 1;
+          throw raceError;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        activeDownloads -= 1;
+      });
+
+      await sync();
+
+      expect(downloadBudget).toHaveBeenCalledTimes(2);
+      expect(logger.error).not.toHaveBeenCalledWith(
+        { error: raceError },
+        expect.stringContaining('Error downloading budget'),
+      );
+    });
+
     it('should log budget loading errors and continue', async () => {
       const error = new Error('Load failed');
       vi.mocked(readFile).mockReset();

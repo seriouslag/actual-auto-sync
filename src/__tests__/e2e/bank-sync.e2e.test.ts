@@ -17,7 +17,9 @@ import {
   E2E_CONFIG,
   MOCK_SIMPLEFIN_CONFIG,
   cleanupDataDir,
+  createBudgetWithSimpleFin,
   daysAgo,
+  getSyncIdMaps,
   getMockSimpleFinAccounts,
   initApi,
   mockSimpleFinAccounts,
@@ -420,7 +422,107 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
 });
 
 /**
- * Test Suite 5: Error Handling
+ * Test Suite 5: Multi-Budget Regression (Issue #64)
+ *
+ * Reproduces the reported setup:
+ * - Two budgets
+ * - Same SimpleFIN source (same access key)
+ * - Different accounts linked per budget
+ *
+ * Verifies repeated sync cycles do not duplicate imported transactions.
+ */
+describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
+  let mockServerContext: Awaited<ReturnType<typeof startMockSimpleFinServer>>;
+  let budget1SyncId: string;
+  let budget2SyncId: string;
+  const budget1AccountName = `Issue64 Budget 1 Account ${Date.now()}`;
+  const budget2AccountName = `Issue64 Budget 2 Account ${Date.now()}`;
+
+  beforeAll(async () => {
+    mockServerContext = await startMockSimpleFinServer({ port: 9006 });
+    await waitForServer();
+    await cleanupDataDir();
+    await initApi();
+
+    const sharedAccessKey = mockServerContext.accessKey;
+
+    const budget1 = await createBudgetWithSimpleFin(
+      `issue64-budget-1-${Date.now()}`,
+      sharedAccessKey,
+      'ACT-001',
+      budget1AccountName,
+      'Test Bank',
+      'testbank.com',
+    );
+
+    const budget2 = await createBudgetWithSimpleFin(
+      `issue64-budget-2-${Date.now()}`,
+      sharedAccessKey,
+      'ACT-003',
+      budget2AccountName,
+      'Second Bank',
+      'secondbank.com',
+    );
+
+    budget1SyncId = budget1.syncId;
+    budget2SyncId = budget2.syncId;
+  });
+
+  afterAll(async () => {
+    await stopMockSimpleFinServer(mockServerContext.server);
+    await shutdownApi().catch(() => {});
+    await cleanupDataDir();
+  });
+
+  async function syncBudgetAndGetImportedIds(syncId: string, accountName: string): Promise<string[]> {
+    await api.downloadBudget(syncId);
+
+    const syncIdMap = await getSyncIdMaps(E2E_CONFIG.dataDir);
+    const budgetId = syncIdMap[syncId];
+    expect(budgetId).toBeDefined();
+
+    await api.loadBudget(budgetId);
+    await api.runBankSync();
+    await api.sync();
+
+    const accounts = await api.getAccounts();
+    const targetAccount = accounts.find((account) => account.name === accountName);
+    expect(targetAccount).toBeDefined();
+
+    const transactions = await api.getTransactions(targetAccount!.id, '2000-01-01', '2100-01-01');
+    return transactions
+      .filter((transaction) => transaction.imported_id)
+      .map((transaction) => transaction.imported_id!);
+  }
+
+  it('should not duplicate imported transactions across repeated multi-budget sync cycles', async () => {
+    const cycle1Budget1ImportedIds = await syncBudgetAndGetImportedIds(budget1SyncId, budget1AccountName);
+    const cycle1Budget2ImportedIds = await syncBudgetAndGetImportedIds(budget2SyncId, budget2AccountName);
+
+    expect(cycle1Budget1ImportedIds.length).toBeGreaterThan(0);
+    expect(cycle1Budget2ImportedIds.length).toBeGreaterThan(0);
+
+    const cycle2Budget1ImportedIds = await syncBudgetAndGetImportedIds(budget1SyncId, budget1AccountName);
+    const cycle2Budget2ImportedIds = await syncBudgetAndGetImportedIds(budget2SyncId, budget2AccountName);
+
+    const uniqueCycle2Budget1Ids = new Set(cycle2Budget1ImportedIds);
+    const uniqueCycle2Budget2Ids = new Set(cycle2Budget2ImportedIds);
+    const sortedCycle1Budget1Ids = [...cycle1Budget1ImportedIds].sort();
+    const sortedCycle1Budget2Ids = [...cycle1Budget2ImportedIds].sort();
+    const sortedCycle2Budget1Ids = [...cycle2Budget1ImportedIds].sort();
+    const sortedCycle2Budget2Ids = [...cycle2Budget2ImportedIds].sort();
+
+    expect(uniqueCycle2Budget1Ids.size).toBe(cycle2Budget1ImportedIds.length);
+    expect(uniqueCycle2Budget2Ids.size).toBe(cycle2Budget2ImportedIds.length);
+    expect(cycle2Budget1ImportedIds.length).toBe(cycle1Budget1ImportedIds.length);
+    expect(cycle2Budget2ImportedIds.length).toBe(cycle1Budget2ImportedIds.length);
+    expect(sortedCycle2Budget1Ids).toEqual(sortedCycle1Budget1Ids);
+    expect(sortedCycle2Budget2Ids).toEqual(sortedCycle1Budget2Ids);
+  });
+});
+
+/**
+ * Test Suite 6: Error Handling
  *
  * Tests various error scenarios.
  */

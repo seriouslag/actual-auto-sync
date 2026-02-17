@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import {
   downloadBudget,
   init,
+  internal,
   loadBudget,
   runBankSync,
   shutdown,
@@ -20,14 +21,45 @@ export function formatCronSchedule(schedule: string) {
   return cronstrue.toString(schedule).toLowerCase();
 }
 
+export async function syncAccountBalancesToCRDT() {
+  try {
+    const accounts = (await internal.db.getAccounts()) as {
+      id: string;
+      balance_current?: number;
+    }[];
+
+    for (const account of accounts) {
+      if (typeof account.balance_current === 'number') {
+        await internal.db.update('accounts', {
+          id: account.id,
+          balance_current: account.balance_current,
+        });
+      }
+    }
+  } catch (error) {
+    logger.error({ error }, 'Error syncing account balances through CRDT');
+  }
+}
+
+async function syncBankAccounts() {
+  logger.info('Syncing all accounts...');
+  await runBankSync();
+  logger.info('All accounts synced.');
+  logger.info('Syncing account balances through CRDT...');
+  await syncAccountBalancesToCRDT();
+  logger.info('Account balances synced through CRDT.');
+}
+
+async function syncBudgetToServer() {
+  logger.info('Syncing budget to server...');
+  await syncBudget();
+  logger.info('Budget synced to server successfully.');
+}
+
 export async function syncAllAccounts() {
   try {
-    logger.info('Syncing all accounts...');
-    await runBankSync();
-    logger.info('All accounts synced.');
-    logger.info('Syncing budget to server...');
-    await syncBudget();
-    logger.info('Budget synced to server successfully.');
+    await syncBankAccounts();
+    await syncBudgetToServer();
   } catch (error) {
     logger.error({ error }, 'Error syncing all accounts');
   }

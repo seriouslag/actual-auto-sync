@@ -32,6 +32,19 @@ import {
   waitForServer,
 } from './setup.js';
 
+function decodeCrdtNumber(value: string | number | null | undefined): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value !== 'string') {
+    return Number.NaN;
+  }
+  if (value.startsWith('N:')) {
+    return Number(value.slice(2));
+  }
+  return Number(value);
+}
+
 /**
  * Test Suite 1: Mock SimpleFIN Server
  *
@@ -419,6 +432,60 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
     } else {
       console.log('Skipping server sync (local-only budget)');
     }
+  });
+
+  it('should sync linked bank balance through CRDT messages', async () => {
+    const mockAccount = mockSimpleFinAccounts['ACT-001'];
+    expect(mockAccount).toBeDefined();
+    if (!mockAccount) {
+      throw new Error('Expected mock account ACT-001 to be defined');
+    }
+
+    // Link seeded account to mock SimpleFIN account
+    const simpleFinAccessKey = process.env.MOCK_SIMPLEFIN_ACCESS_KEY || mockServerContext.accessKey;
+    await setSimpleFinCredentials(simpleFinAccessKey);
+    const parsedBalance = Number(mockAccount.balance);
+    const normalizedBalance = Number.isFinite(parsedBalance) ? parsedBalance : 0;
+
+    await linkAccountToSimpleFin(
+      seededAccountId,
+      mockAccount.id,
+      mockAccount.org.name,
+      mockAccount.org.domain,
+      mockAccount.org.id,
+      normalizedBalance,
+      mockAccount.name,
+    );
+
+    // Run the app sync flow under test
+    process.env.ACTUAL_BUDGET_SYNC_IDS ??= seededSyncId ?? 'e2e-placeholder-sync-id';
+    process.env.ACTUAL_SERVER_URL ??= E2E_CONFIG.serverUrl;
+    process.env.ACTUAL_SERVER_PASSWORD ??= E2E_CONFIG.serverPassword;
+    const { syncAllAccounts: runAutoSyncAllAccounts } = await import('../../utils.js');
+    await runAutoSyncAllAccounts();
+
+    // Verify account has a synced balance value
+    const accountRows = (await api.internal.db.all(
+      'SELECT id, balance_current FROM accounts WHERE id = ?',
+      [seededAccountId],
+    )) as { id: string; balance_current: number | null }[];
+
+    expect(accountRows.length).toBe(1);
+    expect(accountRows[0]?.balance_current).not.toBeNull();
+
+    // Verify balance_current was emitted as a CRDT message (issue #60 regression guard)
+    const balanceMessages = (await api.internal.db.all(
+      "SELECT value FROM messages_crdt WHERE dataset = 'accounts' AND row = ? AND column = 'balance_current' ORDER BY timestamp",
+      [seededAccountId],
+    )) as { value: string | number | null }[];
+
+    expect(balanceMessages.length).toBeGreaterThan(0);
+
+    const latestMessageValue = decodeCrdtNumber(balanceMessages.at(-1)?.value);
+    expect(latestMessageValue).toBe(accountRows[0]?.balance_current);
+
+    const expectedBalance = api.internal.amountToInteger(mockAccount.balance);
+    expect(accountRows[0]?.balance_current).toBe(expectedBalance);
   });
 });
 

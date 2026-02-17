@@ -474,7 +474,10 @@ describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
     await cleanupDataDir();
   });
 
-  async function syncBudgetAndGetImportedIds(syncId: string, accountName: string): Promise<string[]> {
+  async function syncBudgetAndGetImportedIds(
+    syncId: string,
+    accountName: string,
+  ): Promise<string[]> {
     await api.downloadBudget(syncId);
 
     const syncIdMap = await getSyncIdMaps(E2E_CONFIG.dataDir);
@@ -496,14 +499,26 @@ describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
   }
 
   it('should not duplicate imported transactions across repeated multi-budget sync cycles', async () => {
-    const cycle1Budget1ImportedIds = await syncBudgetAndGetImportedIds(budget1SyncId, budget1AccountName);
-    const cycle1Budget2ImportedIds = await syncBudgetAndGetImportedIds(budget2SyncId, budget2AccountName);
+    const cycle1Budget1ImportedIds = await syncBudgetAndGetImportedIds(
+      budget1SyncId,
+      budget1AccountName,
+    );
+    const cycle1Budget2ImportedIds = await syncBudgetAndGetImportedIds(
+      budget2SyncId,
+      budget2AccountName,
+    );
 
     expect(cycle1Budget1ImportedIds.length).toBeGreaterThan(0);
     expect(cycle1Budget2ImportedIds.length).toBeGreaterThan(0);
 
-    const cycle2Budget1ImportedIds = await syncBudgetAndGetImportedIds(budget1SyncId, budget1AccountName);
-    const cycle2Budget2ImportedIds = await syncBudgetAndGetImportedIds(budget2SyncId, budget2AccountName);
+    const cycle2Budget1ImportedIds = await syncBudgetAndGetImportedIds(
+      budget1SyncId,
+      budget1AccountName,
+    );
+    const cycle2Budget2ImportedIds = await syncBudgetAndGetImportedIds(
+      budget2SyncId,
+      budget2AccountName,
+    );
 
     const uniqueCycle2Budget1Ids = new Set(cycle2Budget1ImportedIds);
     const uniqueCycle2Budget2Ids = new Set(cycle2Budget2ImportedIds);

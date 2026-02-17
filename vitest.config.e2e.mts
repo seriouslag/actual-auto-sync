@@ -21,9 +21,5 @@ export default defineConfig({
     isolate: true,
     // No retry - we want consistent test behavior
     retry: 0,
-    // Don't fail on unhandled rejections from @actual-app/api internal operations
-    // The API has background sync operations that may reject after tests complete
-    // These are bugs in the @actual-app/api library, not our test code
-    dangerouslyIgnoreUnhandledErrors: true,
   },
 });

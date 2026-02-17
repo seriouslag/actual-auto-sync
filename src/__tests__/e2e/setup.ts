@@ -357,6 +357,44 @@ export const MOCK_SIMPLEFIN_CONFIG = {
 // These are used for testing with real SimpleFIN tokens (beta/demo accounts)
 // ============================================================================
 
+function formatUrlForSafeLogs(urlString: string): string {
+  try {
+    const url = new URL(urlString);
+    return `${url.origin}/...`;
+  } catch {
+    return '[invalid-url]';
+  }
+}
+
+function getSimpleFinDemoTokenCandidates(html: string): string[] {
+  const candidates = new Set<string>();
+
+  // Preferred pattern: base64-encoded URLs that decode to SimpleFIN claim endpoints.
+  // This is intentionally heuristic and can break if the upstream page changes.
+  const base64Pattern = /aHR0[A-Za-z0-9+/]+=*/g;
+  const base64Matches = html.match(base64Pattern) ?? [];
+
+  for (const match of base64Matches) {
+    try {
+      const decoded = Buffer.from(match, 'base64').toString('utf8');
+      if (decoded.includes('simplefin/claim/DEMO')) {
+        candidates.add(match);
+      }
+    } catch {
+      // Skip invalid base64 fragments.
+    }
+  }
+
+  // Fallback: claim URLs may be present directly in HTML in plain text.
+  const claimUrlPattern = /https:\/\/[^\s"'<>]*simplefin\/claim\/DEMO[^\s"'<>]*/g;
+  const claimUrlMatches = html.match(claimUrlPattern) ?? [];
+  for (const claimUrl of claimUrlMatches) {
+    candidates.add(Buffer.from(claimUrl, 'utf8').toString('base64'));
+  }
+
+  return [...candidates];
+}
+
 /**
  * Fetch a fresh demo token from the SimpleFIN developer page.
  * Each page load generates a new unique demo token.
@@ -372,32 +410,16 @@ export async function fetchFreshSimpleFinToken(): Promise<string> {
   }
 
   const html = await response.text();
-
-  // Look for base64-encoded tokens that decode to SimpleFIN claim URLs.
-  // SimpleFIN embeds claim URLs as base64 strings starting with "http", so the
-  // base64-encoded form always begins with "aHR0" (base64 for "http").
-  // We anchor the regex on this prefix to avoid matching arbitrary base64 fragments.
-  const tokenPattern = /aHR0[A-Za-z0-9+/]+=*/g;
-  const matches = html.match(tokenPattern);
-
-  if (!matches || matches.length === 0) {
-    throw new Error('No SimpleFIN demo tokens found on developer page');
+  const tokenCandidates = getSimpleFinDemoTokenCandidates(html);
+  if (tokenCandidates.length > 0) {
+    const token = tokenCandidates[0];
+    console.log(`Found fresh demo token: ${token.slice(0, 20)}...`);
+    return token;
   }
 
-  // Find tokens that decode to valid claim URLs
-  for (const match of matches) {
-    try {
-      const decoded = Buffer.from(match, 'base64').toString('utf8');
-      if (decoded.includes('simplefin/claim/DEMO')) {
-        console.log(`Found fresh demo token: ${match.slice(0, 20)}...`);
-        return match;
-      }
-    } catch {
-      // Skip invalid base64
-    }
-  }
-
-  throw new Error('No valid SimpleFIN demo claim tokens found');
+  throw new Error(
+    'No valid SimpleFIN demo claim tokens found. The developer page format may have changed; provide SIMPLEFIN_SETUP_TOKEN_1/2 as a fallback.',
+  );
 }
 
 /**
@@ -439,7 +461,7 @@ export async function fetchMultipleFreshTokens(count: number): Promise<string[]>
 export async function claimSimpleFinToken(setupToken: string): Promise<string> {
   // Decode the setup token to get the claim URL
   const claimUrl = Buffer.from(setupToken, 'base64').toString('utf8');
-  console.log(`Claiming SimpleFIN token from: ${claimUrl}`);
+  console.log(`Claiming SimpleFIN token from: ${formatUrlForSafeLogs(claimUrl)}`);
 
   // POST to the claim URL to get the access key
   const response = await fetch(claimUrl, {

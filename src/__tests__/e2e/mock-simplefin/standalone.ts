@@ -5,7 +5,7 @@
  * useful for Docker containers or manual testing.
  */
 
-import { startMockSimpleFinServer } from './server.js';
+import { startMockSimpleFinServer, stopMockSimpleFinServer } from './server.js';
 
 const port = Number.parseInt(process.env.MOCK_SIMPLEFIN_PORT || '8080', 10);
 const username = process.env.MOCK_SIMPLEFIN_USERNAME || 'test';
@@ -16,8 +16,32 @@ console.log(`  Port: ${port}`);
 console.log(`  Username: ${username}`);
 console.log(`  Password: ${'*'.repeat(password.length)}`);
 
+let runningServer: Awaited<ReturnType<typeof startMockSimpleFinServer>>['server'] | null = null;
+let isShuttingDown = false;
+
+async function shutdown(signal: string): Promise<void> {
+  if (isShuttingDown) {
+    return;
+  }
+  isShuttingDown = true;
+
+  console.log(`\nShutting down on ${signal}...`);
+  try {
+    if (runningServer) {
+      await stopMockSimpleFinServer(runningServer);
+      runningServer = null;
+    }
+  } catch (error) {
+    console.error('Failed to stop mock server cleanly:', error);
+    process.exitCode = 1;
+  } finally {
+    process.exit();
+  }
+}
+
 startMockSimpleFinServer({ port, username, password })
-  .then(({ url, accessKey }) => {
+  .then(({ server, url, accessKey }) => {
+    runningServer = server;
     console.log(`\nServer running at ${url}`);
     console.log(`Access key: ${accessKey}`);
     console.log('\nEndpoints:');
@@ -33,11 +57,9 @@ startMockSimpleFinServer({ port, username, password })
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\nShutting down...');
-  process.exit(0);
+  void shutdown('SIGINT');
 });
 
 process.on('SIGTERM', () => {
-  console.log('\nShutting down...');
-  process.exit(0);
+  void shutdown('SIGTERM');
 });

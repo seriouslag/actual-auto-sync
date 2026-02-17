@@ -26,7 +26,5 @@ process.on('unhandledRejection', (reason) => {
     console.log('[E2E Setup] Suppressed unhandled rejection from @actual-app/api');
     return;
   }
-
-  // Re-throw other unhandled rejections
-  throw reason;
+  console.error('[E2E Setup] Unhandled rejection (not suppressed):', reason);
 });

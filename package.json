@@ -25,7 +25,7 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "check": "pnpm lint && pnpm format:check && pnpm build",
-    "prepare": "lefthook install"
+    "prepare": "if [ -d .git ]; then lefthook install; fi"
   },
   "dependencies": {
     "@actual-app/api": "^26.2.0",

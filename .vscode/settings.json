@@ -1,4 +1,18 @@
 {
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "always",
+    "source.fixAll.eslint": "never"
+  },
+  "eslint.enable": false,
+  "eslint.validate": [],
+  "oxc.configPath": ".oxlintrc.json",
+  "oxc.fmt.configPath": ".oxfmtrc.jsonc",
+  "[javascript]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
   "cSpell.words": ["cronstrue"],
   "yaml.format.singleQuote": false,
   "yaml.format.bracketSpacing": true,

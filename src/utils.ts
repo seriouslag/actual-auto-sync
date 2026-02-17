@@ -1,3 +1,6 @@
+import { mkdir, readFile, readdir } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import {
   downloadBudget,
   init,
@@ -7,8 +10,6 @@ import {
   sync as syncBudget,
 } from '@actual-app/api';
 import cronstrue from 'cronstrue';
-import { mkdir, readFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
 
 import { env } from './env.js';
 import { logger } from './logger.js';
@@ -32,8 +33,7 @@ export async function syncAllAccounts() {
   }
 }
 
-export const sync = async () => {
-  logger.info('Starting service...');
+async function createDataDirAndInitApi() {
   try {
     logger.info(`Creating data directory ${ACTUAL_DATA_DIR}`);
     await mkdir(ACTUAL_DATA_DIR, { recursive: true });
@@ -45,55 +45,47 @@ export const sync = async () => {
       password: env.ACTUAL_SERVER_PASSWORD,
     });
     logger.info('Actual API initialized successfully.');
-
-    const formattedSchedule = formatCronSchedule(env.CRON_SCHEDULE);
-    logger.info(`Scheduling sync to run ${formattedSchedule}...`);
-
-    const syncIdToBudgetId = await getSyncIdMaps(ACTUAL_DATA_DIR);
-
-    for (const [syncId, budgetId] of Object.entries(syncIdToBudgetId)) {
-      // If the sync id is not in the ACTUAL_BUDGET_SYNC_IDS array, skip it
-      if (!env.ACTUAL_BUDGET_SYNC_IDS.includes(syncId)) {
-        logger.info(`Sync id ${syncId} not in ACTUAL_BUDGET_SYNC_IDS, skipping...`);
-        continue;
-      }
-      logger.info(`Sync id: ${syncId}, Budget id: ${budgetId}`);
-      const syncBudgetId = syncIdToBudgetId[syncId];
-      try {
-        logger.info(`Loading budget ${syncBudgetId}...`);
-        await loadBudget(syncBudgetId);
-        logger.info(`Budget ${syncBudgetId} loaded successfully.`);
-      } catch (error) {
-        logger.error({ error }, `Error loading budget ${syncBudgetId}`);
-      }
-    }
-
-    for (const [index, budgetId] of env.ACTUAL_BUDGET_SYNC_IDS.entries()) {
-      try {
-        logger.info(`Downloading budget ${budgetId}...`);
-        const password = env.ENCRYPTION_PASSWORDS[index];
-        if (password) {
-          await downloadBudget(budgetId, { password });
-        } else {
-          await downloadBudget(budgetId);
-        }
-        logger.info(`Budget ${budgetId} downloaded successfully.`);
-      } catch (error) {
-        logger.error({ error }, `Error downloading budget ${budgetId}`);
-      }
-    }
-
-    logger.info('Syncing accounts...');
-    await syncAllAccounts();
-    logger.info('Accounts synced successfully.');
   } catch (error) {
-    logger.error({ error }, 'Error starting the service.');
-  } finally {
-    logger.info('Shutting down...');
-    await shutdown();
-    logger.info('Shutdown complete.');
+    logger.error({ error }, 'Error initializing Actual API.');
+    throw error;
   }
-};
+}
+
+async function loadConfiguredBudgets(syncIdToBudgetId: Record<string, string>) {
+  const configuredSyncIds = new Set(env.ACTUAL_BUDGET_SYNC_IDS);
+
+  for (const [syncId, budgetId] of Object.entries(syncIdToBudgetId)) {
+    if (configuredSyncIds.has(syncId)) {
+      logger.info(`Sync id: ${syncId}, Budget id: ${budgetId}`);
+      try {
+        logger.info(`Loading budget ${budgetId}...`);
+        await loadBudget(budgetId);
+        logger.info(`Budget ${budgetId} loaded successfully.`);
+      } catch (error) {
+        logger.error({ error }, `Error loading budget ${budgetId}`);
+      }
+    } else {
+      logger.info(`Sync id ${syncId} not in ACTUAL_BUDGET_SYNC_IDS, skipping...`);
+    }
+  }
+}
+
+async function downloadConfiguredBudgets() {
+  for (const [index, budgetId] of env.ACTUAL_BUDGET_SYNC_IDS.entries()) {
+    try {
+      logger.info(`Downloading budget ${budgetId}...`);
+      const password = env.ENCRYPTION_PASSWORDS[index];
+      if (password) {
+        await downloadBudget(budgetId, { password });
+      } else {
+        await downloadBudget(budgetId);
+      }
+      logger.info(`Budget ${budgetId} downloaded successfully.`);
+    } catch (error) {
+      logger.error({ error }, `Error downloading budget ${budgetId}`);
+    }
+  }
+}
 
 export async function listSubDirectories(directory: string) {
   const subDirectories = await readdir(directory, { withFileTypes: true });
@@ -103,7 +95,7 @@ export async function listSubDirectories(directory: string) {
 export async function getSyncIdMaps(dataDir: string) {
   logger.info('Getting sync id to budget id map...');
   // Unfortunately Actual Node.js api doesn't provide functionality to get the
-  // budget id associated to the sync id, this is a hack to do that
+  // Budget id associated to the sync id, this is a hack to do that
   try {
     const directories = await listSubDirectories(dataDir);
     const syncIdToBudgetId: Record<string, string> = {};
@@ -119,3 +111,40 @@ export async function getSyncIdMaps(dataDir: string) {
     throw error;
   }
 }
+
+async function runSyncCycle() {
+  try {
+    await createDataDirAndInitApi();
+
+    logger.info(`Scheduling sync to run ${formatCronSchedule(env.CRON_SCHEDULE)}...`);
+
+    const syncIdToBudgetId = await getSyncIdMaps(ACTUAL_DATA_DIR);
+    await loadConfiguredBudgets(syncIdToBudgetId);
+    await downloadConfiguredBudgets();
+
+    logger.info('Syncing accounts...');
+    await syncAllAccounts();
+    logger.info('Accounts synced successfully.');
+  } catch (error) {
+    logger.error({ error }, 'Error starting the service.');
+  }
+}
+
+async function shutdownApi() {
+  logger.info('Shutting down...');
+  await shutdown();
+  logger.info('Shutdown complete.');
+}
+
+export const sync = async () => {
+  logger.info('Starting service...');
+  try {
+    await runSyncCycle();
+  } finally {
+    try {
+      await shutdownApi();
+    } catch (error) {
+      logger.error({ error }, 'Error shutting down the service.');
+    }
+  }
+};

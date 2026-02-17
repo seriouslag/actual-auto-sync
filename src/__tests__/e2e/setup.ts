@@ -1,6 +1,28 @@
+// oxlint-disable max-statements
+import { mkdir, rm } from 'node:fs/promises';
+
 import * as api from '@actual-app/api';
-import { mkdir, readFile, readdir, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+
+import {
+  getSimpleFinAccounts,
+  linkAccountToSimpleFin,
+  listSubDirectories,
+  readBudgetMetadata,
+  setSimpleFinCredentials,
+  uploadBudget,
+} from './actual-api-helpers.js';
+export {
+  checkSimpleFinStatus,
+  getSimpleFinAccounts,
+  getSyncIdMaps,
+  linkAccountToSimpleFin,
+  listSubDirectories,
+  readBudgetMetadata,
+  setSimpleFinCredentials,
+  syncAllAccounts,
+  uploadBudget,
+} from './actual-api-helpers.js';
+export type { BudgetMetadata } from './actual-api-helpers.js';
 
 // E2E test configuration - uses environment variables or defaults
 export const E2E_CONFIG = {
@@ -75,7 +97,9 @@ export async function waitForServer(maxAttempts = 30, delayMs = 1000): Promise<v
 
     if (attempt < maxAttempts) {
       console.log(`Waiting for server... attempt ${attempt}/${maxAttempts}`);
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      await new Promise((resolve) => {
+        setTimeout(resolve, delayMs);
+      });
     }
   }
 
@@ -128,11 +152,12 @@ export function createSampleTransactions(count = 5) {
   for (let i = 0; i < count; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
+    const [dateStr] = date.toISOString().split('T');
 
     transactions.push({
       date: dateStr,
-      amount: -((i + 1) * 1000), // Negative = expense, in cents
+      // Negative = expense, in cents
+      amount: -((i + 1) * 1000),
       payee_name: `Test Payee ${i + 1}`,
       notes: `E2E test transaction ${i + 1}`,
       imported_id: `e2e-test-${timestamp}-${i}`,
@@ -152,8 +177,10 @@ export function createSampleTransactions(count = 5) {
  */
 export async function seedTestBudget(): Promise<{
   budgetName: string;
-  syncId: string | undefined; // undefined if upload failed
-  budgetId: string; // local budget ID
+  // Undefined if upload failed
+  syncId: string | undefined;
+  // Local budget ID
+  budgetId: string;
   accountId: string;
   uploadedToServer: boolean;
 }> {
@@ -169,7 +196,8 @@ export async function seedTestBudget(): Promise<{
       {
         name: 'E2E Test Checking',
       },
-      10_000 * 100, // $10,000 initial balance in cents
+      // $10,000 initial balance in cents
+      10_000 * 100,
     );
 
     console.log(`Created account: ${createdAccountId}`);
@@ -217,102 +245,6 @@ export async function seedTestBudget(): Promise<{
     accountId: createdAccountId,
     uploadedToServer: uploadSucceeded,
   };
-}
-
-// ============================================================================
-// Functions that mirror the actual application (from src/utils.ts)
-// These are used to test the real sync workflow
-// ============================================================================
-
-/**
- * List subdirectories in a directory.
- * Mirror of listSubDirectories() from src/utils.ts
- */
-export async function listSubDirectories(directory: string): Promise<string[]> {
-  const subDirectories = await readdir(directory, { withFileTypes: true });
-  return subDirectories.filter((dirent) => dirent.isDirectory()).map((dirent) => dirent.name);
-}
-
-/**
- * Get sync ID to budget ID mapping by reading metadata.json files.
- * Mirror of getSyncIdMaps() from src/utils.ts
- *
- * This is the workaround the app uses because the Actual API doesn't provide
- * a direct way to get the budget ID from the sync ID.
- */
-export async function getSyncIdMaps(dataDir: string): Promise<Record<string, string>> {
-  console.log('Getting sync id to budget id map...');
-  try {
-    const directories = await listSubDirectories(dataDir);
-    const syncIdToBudgetId: Record<string, string> = {};
-
-    const tasks = directories.map(async (subDir) => {
-      const metadataPath = join(dataDir, subDir, 'metadata.json');
-      try {
-        const metadataContent = await readFile(metadataPath, 'utf8');
-        let metadata;
-        try {
-          metadata = JSON.parse(metadataContent);
-        } catch (parseError) {
-          console.log(
-            `  Skipping ${subDir}: invalid JSON in ${metadataPath} (${parseError instanceof Error ? parseError.message : parseError})`,
-          );
-          return;
-        }
-        // GroupId is the sync ID, id is the budget ID
-        syncIdToBudgetId[metadata.groupId] = metadata.id;
-        console.log(`  Found mapping: syncId=${metadata.groupId} -> budgetId=${metadata.id}`);
-      } catch (error) {
-        // Skip directories without metadata.json or with read errors
-        console.log(
-          `  Skipping ${subDir}: ${error instanceof Error ? error.message : 'no valid metadata.json'}`,
-        );
-      }
-    });
-
-    await Promise.all(tasks);
-    console.log(
-      `Sync id to budget id map created: ${Object.keys(syncIdToBudgetId).length} entries`,
-    );
-    return syncIdToBudgetId;
-  } catch (error) {
-    console.error('Error creating map from sync id to budget id:', error);
-    throw error;
-  }
-}
-
-/**
- * Simulate the syncAllAccounts function from src/utils.ts
- * This is what the app does after loading a budget.
- */
-export async function syncAllAccounts(): Promise<void> {
-  console.log('Syncing all accounts...');
-  await api.runBankSync();
-  console.log('All accounts synced.');
-  console.log('Syncing budget to server...');
-  await api.sync();
-  console.log('Budget synced to server successfully.');
-}
-
-/**
- * Interface for budget metadata stored in metadata.json
- */
-export interface BudgetMetadata {
-  id: string; // Budget ID (local identifier)
-  groupId: string; // Sync ID (server identifier)
-  name?: string;
-}
-
-/**
- * Read metadata.json from a downloaded budget directory.
- */
-export async function readBudgetMetadata(
-  dataDir: string,
-  budgetDirName: string,
-): Promise<BudgetMetadata> {
-  const metadataPath = join(dataDir, budgetDirName, 'metadata.json');
-  const content = await readFile(metadataPath, 'utf8');
-  return JSON.parse(content);
 }
 
 // ============================================================================
@@ -412,7 +344,7 @@ export async function fetchFreshSimpleFinToken(): Promise<string> {
   const html = await response.text();
   const tokenCandidates = getSimpleFinDemoTokenCandidates(html);
   if (tokenCandidates.length > 0) {
-    const token = tokenCandidates[0];
+    const [token] = tokenCandidates;
     console.log(`Found fresh demo token: ${token.slice(0, 20)}...`);
     return token;
   }
@@ -435,7 +367,9 @@ export async function fetchMultipleFreshTokens(count: number): Promise<string[]>
   for (let i = 0; i < count; i++) {
     // Add a small delay between requests to ensure unique tokens
     if (i > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => {
+        setTimeout(resolve, 500);
+      });
     }
 
     const token = await fetchFreshSimpleFinToken();
@@ -658,132 +592,4 @@ export async function createBudgetWithSimpleFin(
 export function getMockSimpleFinAccessKey(host = 'localhost'): string {
   const { port, username, password } = MOCK_SIMPLEFIN_CONFIG;
   return `http://${username}:${password}@${host}:${port}/`;
-}
-
-/**
- * Link an account to SimpleFIN using the internal API.
- * Note: This requires the budget to be loaded first.
- */
-export async function linkAccountToSimpleFin(
-  accountId: string,
-  simpleFinAccountId: string,
-  institution: string,
-  orgDomain: string,
-  orgId?: string,
-  balance = 0,
-  accountName?: string,
-): Promise<void> {
-  // Use the internal API to link the account
-  const { internal } = api as {
-    internal?: { send: (method: string, args: object) => Promise<unknown> };
-  };
-  if (!internal) {
-    throw new Error('Internal API not available - make sure @actual-app/api is initialized');
-  }
-
-  await internal.send('simplefin-accounts-link', {
-    externalAccount: {
-      account_id: simpleFinAccountId,
-      name: accountName || `SimpleFIN Account ${simpleFinAccountId}`,
-      balance,
-      institution,
-      orgDomain,
-      orgId,
-    },
-    upgradingId: accountId,
-    offBudget: false,
-  });
-}
-
-/**
- * Set SimpleFIN credentials using the internal API.
- * Note: This requires the server to be running.
- */
-export async function setSimpleFinCredentials(accessKey: string): Promise<void> {
-  const { internal } = api as {
-    internal?: { send: (method: string, args: object) => Promise<unknown> };
-  };
-  if (!internal) {
-    throw new Error('Internal API not available - make sure @actual-app/api is initialized');
-  }
-
-  await internal.send('secret-set', {
-    name: 'simplefin_accessKey',
-    value: accessKey,
-  });
-}
-
-/**
- * Check SimpleFIN status using the internal API.
- */
-export async function checkSimpleFinStatus(): Promise<{ configured: boolean }> {
-  const { internal } = api as {
-    internal?: { send: (method: string, args: object) => Promise<unknown> };
-  };
-  if (!internal) {
-    throw new Error('Internal API not available - make sure @actual-app/api is initialized');
-  }
-
-  return (await internal.send('simplefin-status', {})) as { configured: boolean };
-}
-
-/**
- * Upload a budget to the server using the internal API.
- * This assigns a groupId (sync ID) to the budget.
- *
- * After runImport creates a local budget, call this to upload it to the server.
- * This is necessary for the budget to have a sync ID for downloading later.
- */
-export async function uploadBudget(budgetId?: string): Promise<void> {
-  const { internal } = api as {
-    internal?: { send: (method: string, args: object) => Promise<unknown> };
-  };
-  if (!internal) {
-    throw new Error('Internal API not available - make sure @actual-app/api is initialized');
-  }
-
-  console.log('Uploading budget to server...');
-  const args = budgetId ? { id: budgetId } : {};
-  const result = (await internal.send('upload-budget', args)) as { error?: { reason: string } };
-
-  if (result?.error) {
-    throw new Error(`Failed to upload budget: ${result.error.reason}`);
-  }
-  console.log('Budget uploaded successfully');
-}
-
-/**
- * Get SimpleFIN accounts using the internal API.
- */
-export async function getSimpleFinAccounts(): Promise<{
-  accounts: {
-    id: string;
-    name: string;
-    balance: number;
-    org: { id: string; name: string; domain: string };
-  }[];
-}> {
-  const { internal } = api as {
-    internal?: { send: (method: string, args: object) => Promise<unknown> };
-  };
-  if (!internal) {
-    throw new Error('Internal API not available - make sure @actual-app/api is initialized');
-  }
-
-  const raw = (await internal.send('simplefin-accounts', {})) as {
-    accounts?: unknown;
-    data?: { accounts?: unknown };
-  };
-
-  const directAccounts = Array.isArray(raw.accounts) ? raw.accounts : [];
-  const nestedAccounts =
-    !directAccounts.length && Array.isArray(raw.data?.accounts) ? raw.data.accounts : [];
-  const accounts = (directAccounts.length ? directAccounts : nestedAccounts) as {
-    id: string;
-    name: string;
-    balance: number;
-    org: { id: string; name: string; domain: string };
-  }[];
-
-  return { accounts };
 }

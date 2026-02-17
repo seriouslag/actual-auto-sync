@@ -8,7 +8,6 @@
  * - GET /accounts?balances-only=1 → Returns account list for discovery
  * - GET /accounts?account=X&start-date=Y&pending=1 → Returns transactions
  */
-
 import * as http from 'node:http';
 import { URL } from 'node:url';
 
@@ -63,6 +62,23 @@ function validateAuth(authHeader: string | undefined, config: MockSimpleFinConfi
 }
 
 /**
+ * Formats a SimpleFIN transaction response
+ */
+function formatTransactionResponse(transaction: MockTransaction): object {
+  return {
+    id: transaction.id,
+    posted: Math.floor(transaction.posted.getTime() / 1000),
+    amount: transaction.amount,
+    payee: transaction.payee,
+    description: transaction.description,
+    pending: transaction.pending,
+    transacted_at: transaction.transactedAt
+      ? Math.floor(transaction.transactedAt.getTime() / 1000)
+      : undefined,
+  };
+}
+
+/**
  * Formats a SimpleFIN account response
  */
 function formatAccountResponse(
@@ -90,23 +106,6 @@ function formatAccountResponse(
   }
 
   return baseAccount;
-}
-
-/**
- * Formats a SimpleFIN transaction response
- */
-function formatTransactionResponse(transaction: MockTransaction): object {
-  return {
-    id: transaction.id,
-    posted: Math.floor(transaction.posted.getTime() / 1000),
-    amount: transaction.amount,
-    payee: transaction.payee,
-    description: transaction.description,
-    pending: transaction.pending,
-    transacted_at: transaction.transactedAt
-      ? Math.floor(transaction.transactedAt.getTime() / 1000)
-      : undefined,
-  };
 }
 
 /**

@@ -1,6 +1,7 @@
+import { readFile, readdir } from 'node:fs/promises';
+
 import { runBankSync, sync as syncBudget } from '@actual-app/api';
 import cronstrue from 'cronstrue';
-import { readFile, readdir } from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { env } from '../env.js';
@@ -67,7 +68,9 @@ describe('utils.ts functions', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    cronstrueMock = cronstrue as unknown as { toString: ReturnType<typeof vi.fn> };
+    cronstrueMock = cronstrue as unknown as {
+      toString: ReturnType<typeof vi.fn>;
+    };
   });
 
   afterEach(() => {
@@ -280,7 +283,9 @@ describe('utils.ts functions', () => {
 
       await sync();
 
-      expect(downloadBudget).toHaveBeenCalledWith('budget1', { password: 'pass1' });
+      expect(downloadBudget).toHaveBeenCalledWith('budget1', {
+        password: 'pass1',
+      });
       expect(downloadBudget).toHaveBeenCalledWith('budget2');
     });
 
@@ -354,7 +359,9 @@ describe('utils.ts functions', () => {
       await sync();
 
       expect(logger.error).toHaveBeenCalledWith({ error }, 'Error downloading budget budget1');
-      expect(downloadBudget).toHaveBeenCalledWith('budget2', { password: 'pass2' });
+      expect(downloadBudget).toHaveBeenCalledWith('budget2', {
+        password: 'pass2',
+      });
       expect(shutdown).toHaveBeenCalled();
     });
 
@@ -396,6 +403,15 @@ describe('utils.ts functions', () => {
       // Should continue with the sync process despite cron formatting error
       expect(init).toHaveBeenCalled();
       expect(shutdown).toHaveBeenCalled();
+    });
+
+    it('should log shutdown errors without throwing', async () => {
+      const error = new Error('Shutdown failed');
+      vi.mocked(shutdown).mockRejectedValueOnce(error);
+
+      await expect(sync()).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith({ error }, 'Error shutting down the service.');
     });
   });
 });

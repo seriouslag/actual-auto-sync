@@ -93,30 +93,12 @@ export const serverUrlSchema = z.string().trim().min(1);
 export const serverPasswordSchema = z.string().min(1);
 
 export const env = createEnv({
-  server: {
-    ACTUAL_SERVER_URL: serverUrlSchema,
-    ACTUAL_SERVER_PASSWORD: serverPasswordSchema,
-    CRON_SCHEDULE: cronScheduleSchema,
-    LOG_LEVEL: logLevelSchema,
-    ACTUAL_BUDGET_SYNC_IDS: budgetIdSchema,
-    ENCRYPTION_PASSWORDS: encryptionPasswordSchema,
-    TIMEZONE: timezoneSchema,
-    RUN_ON_START: runOnStartSchema,
-  },
-
+  client: {},
   /**
    * The prefix that client-side variables must have. This is enforced both at
    * a type-level and at runtime.
    */
   clientPrefix: 'PUBLIC_',
-
-  client: {},
-
-  /**
-   * What object holds the environment variables at runtime. This is usually
-   * `process.env` or `import.meta.env`.
-   */
-  runtimeEnv: process.env,
 
   /**
    * By default, this library will feed the environment variables directly to
@@ -132,4 +114,21 @@ export const env = createEnv({
    * explicitly specify this option as true.
    */
   emptyStringAsUndefined: true,
+
+  /**
+   * What object holds the environment variables at runtime. This is usually
+   * `process.env` or `import.meta.env`.
+   */
+  runtimeEnv: process.env,
+
+  server: {
+    ACTUAL_BUDGET_SYNC_IDS: budgetIdSchema,
+    ACTUAL_SERVER_PASSWORD: serverPasswordSchema,
+    ACTUAL_SERVER_URL: serverUrlSchema,
+    CRON_SCHEDULE: cronScheduleSchema,
+    ENCRYPTION_PASSWORDS: encryptionPasswordSchema,
+    LOG_LEVEL: logLevelSchema,
+    RUN_ON_START: runOnStartSchema,
+    TIMEZONE: timezoneSchema,
+  },
 });

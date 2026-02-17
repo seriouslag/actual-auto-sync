@@ -8,7 +8,8 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
-      'src/__tests__/e2e/**', // E2E tests run separately via pnpm test:e2e
+      // E2E tests run separately via pnpm test:e2e
+      'src/__tests__/e2e/**',
     ],
   },
 });

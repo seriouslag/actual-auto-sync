@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { env } from '../env.js';
 import { logger } from '../logger.js';
 
 // Mock the env module to control LOG_LEVEL

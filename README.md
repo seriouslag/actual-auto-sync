@@ -50,6 +50,12 @@ services:
 
 ## Running with Docker (pull from docker hub)
 
+Published tags include:
+
+- `latest` for the newest successful `main` build
+- `vX.Y.Z.N` and `X.Y.Z.N` tags where `X.Y.Z` matches `@actual-app/api` (Actual Budget) and `N` is an internal release counter (for example: `26.2.0.1`, `26.2.0.2`)
+- `<commit-sha>` tags for build traceability
+
 ### direct docker run
 
 ```bash

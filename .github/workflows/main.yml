@@ -8,6 +8,10 @@ on:
       - 'docs/**'
       - '*.md'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
@@ -68,25 +72,95 @@ jobs:
         id: commit_hash
         run: echo "hash=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
 
-      - name: Generate version tag
-        id: version_tag
+      - name: Generate Actual Budget version tag
+        id: actual_budget_version
+        shell: bash
         run: |
-          # Extract @actual-app/api version (major.minor.patch)
-          ACTUAL_API_VERSION=$(node -p "require('./package.json').dependencies['@actual-app/api'].replace('^', '').replace('~', '')" 2>/dev/null || echo "")
+          ACTUAL_BUDGET_VERSION=$(node -p "const v = require('./package.json').dependencies?.['@actual-app/api']; v ? v.replace(/^[~^]/, '') : ''")
 
-          if [ -z "$ACTUAL_API_VERSION" ]; then
+          if [ -z "$ACTUAL_BUDGET_VERSION" ]; then
             echo "Error: Failed to extract @actual-app/api version"
             exit 1
           fi
 
-          # Use GitHub run number as incremental release counter
-          # This ensures each release gets an incrementing number
-          RELEASE_NUMBER="${{ github.run_number }}"
+          echo "version=$ACTUAL_BUDGET_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Using Actual Budget version tag: $ACTUAL_BUDGET_VERSION"
 
-          # Combine into format: major.minor.patch.release
-          VERSION_TAG="${ACTUAL_API_VERSION}.${RELEASE_NUMBER}"
-          echo "tag=${VERSION_TAG}" >> "$GITHUB_OUTPUT"
-          echo "Generated version tag: ${VERSION_TAG}"
+      - name: Generate internal release number
+        id: internal_release
+        shell: bash
+        env:
+          BASE_VERSION: ${{ steps.actual_budget_version.outputs.version }}
+        run: |
+          INTERNAL_RELEASE_NUMBER=$(node <<'NODE'
+          const baseVersion = process.env.BASE_VERSION;
+
+          if (!baseVersion) {
+            console.error("Missing BASE_VERSION");
+            process.exit(1);
+          }
+
+          const versionPattern = new RegExp(`^${baseVersion.replace(/\./g, "\\.")}\\.(\\d+)$`);
+          let nextUrl = "https://hub.docker.com/v2/repositories/seriouslag/actual-auto-sync/tags?page_size=100";
+          let maxInternalRelease = 0;
+
+          (async () => {
+            while (nextUrl) {
+              const response = await fetch(nextUrl);
+              if (!response.ok) {
+                throw new Error(`Docker Hub API request failed with status ${response.status}`);
+              }
+
+              const payload = await response.json();
+
+              for (const tag of payload.results ?? []) {
+                const match = versionPattern.exec(tag.name);
+                if (!match) {
+                  continue;
+                }
+
+                const releaseNumber = Number.parseInt(match[1], 10);
+                if (Number.isInteger(releaseNumber) && releaseNumber > maxInternalRelease) {
+                  maxInternalRelease = releaseNumber;
+                }
+              }
+
+              nextUrl = payload.next;
+            }
+
+            process.stdout.write(String(maxInternalRelease + 1));
+          })().catch((error) => {
+            console.error(error.message);
+            process.exit(1);
+          });
+          NODE
+          )
+
+          if [ -z "$INTERNAL_RELEASE_NUMBER" ]; then
+            echo "Error: Failed to calculate internal release number"
+            exit 1
+          fi
+
+          VERSION_WITH_INTERNAL_RELEASE="${BASE_VERSION}.${INTERNAL_RELEASE_NUMBER}"
+          echo "number=$INTERNAL_RELEASE_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION_WITH_INTERNAL_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "Using internal release number: $INTERNAL_RELEASE_NUMBER"
+          echo "Generated release version: $VERSION_WITH_INTERNAL_RELEASE"
+
+      - name: Generate Docker tags
+        id: docker_tags
+        shell: bash
+        run: |
+          TAGS="seriouslag/actual-auto-sync:latest
+          seriouslag/actual-auto-sync:${{ steps.commit_hash.outputs.hash }}
+          seriouslag/actual-auto-sync:${{ steps.internal_release.outputs.version }}
+          seriouslag/actual-auto-sync:v${{ steps.internal_release.outputs.version }}"
+
+          {
+            echo "tags<<EOF"
+            echo "$TAGS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -102,7 +176,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            seriouslag/actual-auto-sync:latest
-            seriouslag/actual-auto-sync:${{ steps.commit_hash.outputs.hash }}
-            seriouslag/actual-auto-sync:${{ steps.version_tag.outputs.tag }}
+          tags: ${{ steps.docker_tags.outputs.tags }}

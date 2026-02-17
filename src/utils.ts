@@ -103,7 +103,7 @@ export async function listSubDirectories(directory: string) {
 export async function getSyncIdMaps(dataDir: string) {
   logger.info('Getting sync id to budget id map...');
   // Unfortunately Actual Node.js api doesn't provide functionality to get the
-  // Budget id associated to the sync id, this is a hack to do that
+  // budget id associated to the sync id, this is a hack to do that
   try {
     const directories = await listSubDirectories(dataDir);
     const syncIdToBudgetId: Record<string, string> = {};

@@ -48,6 +48,24 @@ const SIMPLEFIN_TOKENS = {
   },
 };
 
+const allowFreshTokenFetch =
+  process.env.SIMPLEFIN_ALLOW_TOKEN_FETCH === '1' ||
+  process.env.SIMPLEFIN_ALLOW_TOKEN_FETCH === 'true';
+
+function hasTokenSource(tokenConfig: { setupToken?: string; accessKey?: string }): boolean {
+  return Boolean(tokenConfig.accessKey || tokenConfig.setupToken);
+}
+
+const hasConfiguredTokenSources =
+  hasTokenSource(SIMPLEFIN_TOKENS.token1) && hasTokenSource(SIMPLEFIN_TOKENS.token2);
+const shouldRunLiveSimpleFinTests = hasConfiguredTokenSources || allowFreshTokenFetch;
+const describeLiveSimpleFin = shouldRunLiveSimpleFinTests ? describe : describe.skip;
+if (!shouldRunLiveSimpleFinTests) {
+  console.log(
+    'Skipping live SimpleFIN token suites. Provide SIMPLEFIN_ACCESS_KEY_1/2 or SIMPLEFIN_SETUP_TOKEN_1/2, or set SIMPLEFIN_ALLOW_TOKEN_FETCH=1.',
+  );
+}
+
 // Track test state
 interface SimpleFINTestState {
   accessKey: string;
@@ -81,11 +99,22 @@ async function getAccessKey(
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       if (errorMsg.includes('403') || errorMsg.includes('410')) {
+        if (!allowFreshTokenFetch) {
+          throw new Error(
+            `Environment token for ${tokenName} was already claimed. Provide a pre-claimed SIMPLEFIN_ACCESS_KEY for this test token or set SIMPLEFIN_ALLOW_TOKEN_FETCH=1.`,
+          );
+        }
         console.log(`Environment token for ${tokenName} already claimed, fetching fresh token...`);
       } else {
         throw error;
       }
     }
+  }
+
+  if (!allowFreshTokenFetch) {
+    throw new Error(
+      `No SimpleFIN token source configured for ${tokenName}. Provide SIMPLEFIN_ACCESS_KEY_1/2 or SIMPLEFIN_SETUP_TOKEN_1/2, or set SIMPLEFIN_ALLOW_TOKEN_FETCH=1.`,
+    );
   }
 
   console.log(`Fetching fresh SimpleFIN token for ${tokenName}...`);
@@ -102,7 +131,7 @@ async function getAccessKey(
  * Tests the core SimpleFIN integration: fetching tokens, claiming them,
  * and retrieving account information.
  */
-describe('E2E: SimpleFIN Token and Account Integration', () => {
+describeLiveSimpleFin('E2E: SimpleFIN Token and Account Integration', () => {
   let token1State: SimpleFINTestState | null = null;
   let token2State: SimpleFINTestState | null = null;
 
@@ -206,7 +235,7 @@ describe('E2E: SimpleFIN Token and Account Integration', () => {
  *
  * Tests creating multiple budgets and configuring SimpleFIN for each.
  */
-describe('E2E: Multi-Budget with SimpleFIN Configuration', () => {
+describeLiveSimpleFin('E2E: Multi-Budget with SimpleFIN Configuration', () => {
   let accessKey1: string = '';
   let accessKey2: string = '';
   let budget1Id: string = ''; // Local budget ID

@@ -131,10 +131,10 @@ MIT
 
 ### Q: I am getting connection errors.
 
-A: Double-check your ACTUAL_SERVER_PASSWORD. If you are connecting via a secure connection (https) and you are on a local machine, you may need to disable Node TLS checks.
+A: Double-check `ACTUAL_SERVER_PASSWORD`. For HTTPS connection errors, keep TLS verification enabled and fix certificate trust instead of disabling TLS checks globally.
 
 ```yaml
-# example showing how to disable Node TLS checks
+# example for a local/self-hosted certificate chain
 services:
   ...
   actual-auto-sync:
@@ -143,7 +143,9 @@ services:
     environment:
       - ACTUAL_SERVER_URL=https://<your-local-actual-budget-url>:<your-actual-budget-port>
       - ACTUAL_SERVER_PASSWORD=<your-actual-budget-password>
-      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - NODE_EXTRA_CA_CERTS=/path/to/ca.pem
       ...
   ...
 ```
+
+If the above does not work, verify the server certificate chain and hostname on the Actual server, then restart the container with an updated CA bundle.

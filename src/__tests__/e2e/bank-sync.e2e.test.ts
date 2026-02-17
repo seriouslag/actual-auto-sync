@@ -20,6 +20,7 @@ import {
   daysAgo,
   getMockSimpleFinAccounts,
   initApi,
+  linkAccountToSimpleFin,
   listSubDirectories,
   mockSimpleFinAccounts,
   readBudgetMetadata,
@@ -434,11 +435,21 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
  */
 describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
   let mockServerContext: Awaited<ReturnType<typeof startMockSimpleFinServer>> | undefined;
-  let budget1: { budgetId: string; accountId: string; accountName: string };
-  let budget2: { budgetId: string; accountId: string; accountName: string };
+  let budget1: {
+    budgetId: string;
+    accountId: string;
+    accountName: string;
+    simpleFinAccountId: string;
+  };
+  let budget2: {
+    budgetId: string;
+    accountId: string;
+    accountName: string;
+    simpleFinAccountId: string;
+  };
 
   beforeAll(async () => {
-    let sharedAccessKey = process.env.MOCK_SIMPLEFIN_ACCESS_KEY;
+    let sharedAccessKey = process.env.MOCK_SIMPLEFIN_ACCESS_KEY || '';
     if (!sharedAccessKey) {
       const context = await startMockSimpleFinServer({ port: 9006 });
       mockServerContext = context;
@@ -452,8 +463,13 @@ describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
     const createBudget = async (
       budgetNamePrefix: string,
       accountName: string,
-      importedIdPrefix: string,
-    ): Promise<{ budgetId: string; accountId: string; accountName: string }> => {
+      simpleFinAccount: (typeof mockSimpleFinAccounts)[string],
+    ): Promise<{
+      budgetId: string;
+      accountId: string;
+      accountName: string;
+      simpleFinAccountId: string;
+    }> => {
       const budgetName = `${budgetNamePrefix}-${Date.now()}`;
       const today = new Date().toISOString().split('T')[0];
 
@@ -465,13 +481,11 @@ describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
             date: today,
             amount: -1200,
             payee_name: 'Issue64 Seed 1',
-            imported_id: `${importedIdPrefix}-1`,
           },
           {
             date: today,
             amount: -3400,
             payee_name: 'Issue64 Seed 2',
-            imported_id: `${importedIdPrefix}-2`,
           },
         ]);
       });
@@ -479,27 +493,53 @@ describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
       const directories = await listSubDirectories(E2E_CONFIG.dataDir);
       const budgetDir = directories.find((directory) => directory.startsWith(budgetName));
       expect(budgetDir).toBeDefined();
-      let metadata = await readBudgetMetadata(E2E_CONFIG.dataDir, budgetDir!);
+      const metadata = await readBudgetMetadata(E2E_CONFIG.dataDir, budgetDir!);
+
+      await api.loadBudget(metadata.id);
 
       await setSimpleFinCredentials(sharedAccessKey);
+      const parsedBalance = Number(simpleFinAccount.balance);
+      const normalizedBalance = Number.isFinite(parsedBalance) ? parsedBalance : 0;
+
+      await linkAccountToSimpleFin(
+        accountId,
+        simpleFinAccount.id,
+        simpleFinAccount.org.name,
+        simpleFinAccount.org.domain,
+        simpleFinAccount.org.id,
+        normalizedBalance,
+        simpleFinAccount.name,
+      );
 
       return {
         budgetId: metadata.id,
         accountId,
         accountName,
+        simpleFinAccountId: simpleFinAccount.id,
       };
     };
+
+    const mockAccounts = getMockSimpleFinAccounts();
+    expect(mockAccounts.length).toBeGreaterThanOrEqual(2);
+    const [mockAccount1, mockAccount2] = mockAccounts;
+    if (!mockAccount1 || !mockAccount2) {
+      throw new Error(
+        'Expected at least two mock SimpleFIN accounts for issue #64 regression test',
+      );
+    }
 
     budget1 = await createBudget(
       'issue64-budget-1',
       `Issue64 Budget 1 Account ${Date.now()}`,
-      `issue64-budget1-${Date.now()}`,
+      mockAccount1,
     );
     budget2 = await createBudget(
       'issue64-budget-2',
       `Issue64 Budget 2 Account ${Date.now()}`,
-      `issue64-budget2-${Date.now()}`,
+      mockAccount2,
     );
+
+    expect(budget1.simpleFinAccountId).not.toBe(budget2.simpleFinAccountId);
   });
 
   afterAll(async () => {

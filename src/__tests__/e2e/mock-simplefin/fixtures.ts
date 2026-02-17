@@ -178,6 +178,15 @@ export const transactions: Record<string, MockTransaction[]> = {
       description: 'Monthly interest',
       pending: false,
     },
+    {
+      id: 'TXN-002-004',
+      posted: daysAgo(0),
+      amount: '-20.00',
+      payee: 'Savings Transfer',
+      description: 'Pending transfer',
+      pending: true,
+      transactedAt: daysAgo(0),
+    },
   ],
   'ACT-003': [
     {

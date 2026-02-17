@@ -175,8 +175,17 @@ export function createMockSimpleFinServer(config: Partial<MockSimpleFinConfig> =
       return;
     }
 
+    // Actual server can request `//accounts` when access keys include a trailing slash.
+    // In Docker this can normalize to `/`, so we accept all equivalent account paths.
+    const isAccountsPath =
+      url.pathname === '/' ||
+      url.pathname === '/accounts' ||
+      url.pathname === '//accounts' ||
+      url.pathname === '/simplefin/accounts' ||
+      url.pathname === '/simplefin//accounts';
+
     // Route requests
-    if (req.method === 'GET' && url.pathname === '/accounts') {
+    if (req.method === 'GET' && isAccountsPath) {
       const result = handleAccountsRequest(url, finalConfig);
       res.writeHead(result.status);
       res.end(JSON.stringify(result.body));

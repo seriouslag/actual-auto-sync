@@ -238,8 +238,10 @@ describeLiveSimpleFin('E2E: SimpleFIN Token and Account Integration', () => {
 describeLiveSimpleFin('E2E: Multi-Budget with SimpleFIN Configuration', () => {
   let accessKey1: string = '';
   let accessKey2: string = '';
-  let budget1Id: string = ''; // Local budget ID
-  let budget2Id: string = ''; // Local budget ID
+  // Local budget ID
+  let budget1Id: string = '';
+  // Local budget ID
+  let budget2Id: string = '';
   let budget1Name: string = '';
   let budget2Name: string = '';
 

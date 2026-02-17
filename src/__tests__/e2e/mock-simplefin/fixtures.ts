@@ -56,7 +56,8 @@ const now = new Date();
 const daysAgo = (days: number): Date => {
   const date = new Date(now);
   date.setDate(date.getDate() - days);
-  date.setHours(12, 0, 0, 0); // Normalize to noon
+  // Normalize to noon
+  date.setHours(12, 0, 0, 0);
   return date;
 };
 

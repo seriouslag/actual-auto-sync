@@ -12,18 +12,20 @@
     "nursery": "warn"
   },
   "rules": {
-    "eslint/no-ternary": "off",
+    "eslint/no-plusplus": "off",
+    "eslint/no-await-in-loop": "off",
+    "eslint/no-console": "off",
+    "oxc/no-optional-chaining": "off",
+    "eslint-plugin-node/no-process-env": "off",
+    "unicorn/no-array-callback-reference": "off",
     "eslint/sort-keys": "off",
-    "import/no-cycle": "error",
     "eslint/func-style": "off",
-    "eslint/max-lines-per-function": "off",
     "typescript/explicit-function-return-type": "off",
     "typescript/explicit-module-boundary-types": "off",
-    "constructor-super": "warn",
-    "for-direction": "warn",
-    "no-async-promise-executor": "warn",
-    "no-caller": "warn",
-    "no-class-assign": "warn",
+    "no-async-await": "off",
+    "eslint/sort-imports": "off",
+    "eslint/no-ternary": "off",
+    "eslint/no-magic-numbers": "off",
     "no-compare-neg-zero": "warn",
     "no-cond-assign": "warn",
     "no-const-assign": "warn",
@@ -155,8 +157,48 @@
     }
   },
   "env": {
-    "builtin": true
+    "builtin": true,
+    "node": true
   },
   "globals": {},
-  "ignorePatterns": []
+  "ignorePatterns": [],
+  "overrides": [
+    {
+      "files": ["src/__tests__/**/*.ts", "vitest.config.mts", "vitest.config.e2e.mts"],
+      "env": {
+        "node": true
+      },
+      "rules": {
+        "max-statements": "off",
+        "no-undefined": "off",
+        "typescript/no-non-null-assertion": "off",
+        "init-declarations": "off",
+        "max-lines-per-function": "off",
+        "id-length": "off",
+        "unicorn/no-useless-undefined": "off",
+        "no-inline-comments": "off",
+        "prefer-destructuring": "off",
+        "oxc/no-rest-spread-properties": "off",
+        "require-await": "off",
+        "typescript/no-explicit-any": "off",
+        "typescript/no-inferrable-types": "off",
+        "no-empty-function": "off",
+        "max-lines": "off",
+        "unicorn/no-null": "off",
+        "unicorn/no-array-for-each": "off",
+        "unicorn/no-array-sort": "off",
+        "no-void": "off",
+        "unicorn/no-process-exit": "off",
+        "typescript/no-dynamic-delete": "off",
+        "typescript/ban-types": "off",
+        "typescript/no-unsafe-function-type": "off",
+        "unicorn/prefer-string-slice": "off",
+        "no-promise-executor-return": "off",
+        "max-params": "off",
+        "unicorn/prefer-top-level-await": "off",
+        "no-continue": "off",
+        "preserve-caught-error": "off"
+      }
+    }
+  ]
 }

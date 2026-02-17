@@ -30,9 +30,9 @@ export function createCronJob(): CronJob<() => void, null> {
     cronTime: env.CRON_SCHEDULE,
     onComplete: () => onComplete(cronJob),
     onTick,
+    runOnInit: env.RUN_ON_START,
     start: false,
     timeZone: env.TIMEZONE,
-    runOnInit: env.RUN_ON_START,
   });
   return cronJob;
 }

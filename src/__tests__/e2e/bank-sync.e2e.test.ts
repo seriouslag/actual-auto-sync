@@ -11,11 +11,10 @@
  * 4. Transaction Fixtures - Tests transaction data and filtering
  */
 import * as api from '@actual-app/api';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   E2E_CONFIG,
-  MOCK_SIMPLEFIN_CONFIG,
   cleanupDataDir,
   daysAgo,
   getMockSimpleFinAccounts,

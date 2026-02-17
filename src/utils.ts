@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import {
   downloadBudget,
   init,
+  internal,
   loadBudget,
   runBankSync,
   shutdown,
@@ -20,14 +21,89 @@ export function formatCronSchedule(schedule: string) {
   return cronstrue.toString(schedule).toLowerCase();
 }
 
+interface AccountBalanceRow {
+  id: string;
+  balance_current?: number | null;
+}
+
+interface AccountBalanceSyncInput {
+  accounts: AccountBalanceRow[];
+  readFailed: boolean;
+}
+
+async function getAccountsForBalanceSync(): Promise<AccountBalanceSyncInput> {
+  try {
+    return {
+      accounts: (await internal.db.getAccounts()) as AccountBalanceRow[],
+      readFailed: false,
+    };
+  } catch (error) {
+    logger.error({ error }, 'Error syncing account balances through CRDT');
+    return {
+      accounts: [],
+      readFailed: true,
+    };
+  }
+}
+
+async function syncAccountBalanceToCRDT(account: AccountBalanceRow): Promise<boolean> {
+  try {
+    await internal.db.update('accounts', {
+      id: account.id,
+      balance_current: account.balance_current,
+    });
+    return true;
+  } catch (error) {
+    logger.error(
+      { error, accountId: account.id },
+      'Error syncing account balance through CRDT for account',
+    );
+    return false;
+  }
+}
+
+export async function syncAccountBalancesToCRDT() {
+  const { accounts, readFailed } = await getAccountsForBalanceSync();
+  if (readFailed) {
+    return false;
+  }
+
+  let hasSyncErrors = false;
+  for (const account of accounts) {
+    if (typeof account.balance_current === 'number') {
+      const synced = await syncAccountBalanceToCRDT(account);
+      if (!synced) {
+        hasSyncErrors = true;
+      }
+    }
+  }
+
+  return !hasSyncErrors;
+}
+
+async function syncBankAccounts() {
+  logger.info('Syncing all accounts...');
+  await runBankSync();
+  logger.info('All accounts synced.');
+  logger.info('Syncing account balances through CRDT...');
+  const syncedBalances = await syncAccountBalancesToCRDT();
+  if (syncedBalances) {
+    logger.info('Account balances synced through CRDT.');
+  } else {
+    logger.info('Account balances sync through CRDT completed with errors.');
+  }
+}
+
+async function syncBudgetToServer() {
+  logger.info('Syncing budget to server...');
+  await syncBudget();
+  logger.info('Budget synced to server successfully.');
+}
+
 export async function syncAllAccounts() {
   try {
-    logger.info('Syncing all accounts...');
-    await runBankSync();
-    logger.info('All accounts synced.');
-    logger.info('Syncing budget to server...');
-    await syncBudget();
-    logger.info('Budget synced to server successfully.');
+    await syncBankAccounts();
+    await syncBudgetToServer();
   } catch (error) {
     logger.error({ error }, 'Error syncing all accounts');
   }

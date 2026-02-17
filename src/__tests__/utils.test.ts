@@ -151,6 +151,25 @@ describe('utils.ts functions', () => {
       expect(runBankSync).toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith({ error }, 'Error syncing all accounts');
     });
+
+    it('should continue syncing budget when account balance CRDT sync has errors', async () => {
+      const error = new Error('DB read failed');
+      vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(internal.db.getAccounts).mockRejectedValue(error);
+      vi.mocked(syncBudget).mockResolvedValue(undefined);
+
+      await syncAllAccounts();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        { error },
+        'Error syncing account balances through CRDT',
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        'Account balances sync through CRDT completed with errors.',
+      );
+      expect(syncBudget).toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith('Budget synced to server successfully.');
+    });
   });
 
   describe('syncAccountBalancesToCRDT', () => {

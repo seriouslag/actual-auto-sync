@@ -1,0 +1,110 @@
+name: PR Publish Test Docker Image
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  publish-test-image:
+    if: |
+      github.event.issue.pull_request &&
+      github.event.comment.user.type != 'Bot' &&
+      startsWith(github.event.comment.body, '/publish-test-image')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Validate commenter permission
+        id: permission
+        shell: bash
+        run: |
+          case "${{ github.event.comment.author_association }}" in
+            OWNER|MEMBER|COLLABORATOR)
+              echo "authorized=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "authorized=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Reply unauthorized
+        if: steps.permission.outputs.authorized != 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `@${context.payload.comment.user.login} only repository maintainers can publish test images.`,
+            });
+
+      - name: Checkout PR head
+        if: steps.permission.outputs.authorized == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+
+      - name: Generate test image name
+        if: steps.permission.outputs.authorized == 'true'
+        id: image
+        shell: bash
+        run: |
+          SHORT_SHA="$(git rev-parse --short=8 HEAD)"
+          IMAGE_TAG="pr-${{ github.event.issue.number }}-${SHORT_SHA}"
+          IMAGE_NAME="seriouslag/actual-auto-sync:${IMAGE_TAG}"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        if: steps.permission.outputs.authorized == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: steps.permission.outputs.authorized == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: seriouslag
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push test image
+        if: steps.permission.outputs.authorized == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image.outputs.image_name }}
+
+      - name: Reply with published image
+        if: success() && steps.permission.outputs.authorized == 'true'
+        uses: actions/github-script@v8
+        env:
+          IMAGE_NAME: ${{ steps.image.outputs.image_name }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `Published test Docker image for this PR:\n\n\`${process.env.IMAGE_NAME}\``,
+            });
+
+      - name: Reply publish failure
+        if: failure() && steps.permission.outputs.authorized == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `Failed to publish test Docker image. Check workflow logs: ${runUrl}`,
+            });

@@ -56,6 +56,16 @@ Published tags include:
 - `vX.Y.Z.N` and `X.Y.Z.N` tags where `X.Y.Z` matches `@actual-app/api` (Actual Budget) and `N` is an internal release counter (for example: `26.2.0.1`, `26.2.0.2`)
 - `<commit-sha>` tags for build traceability
 
+### Publish a PR test image (maintainers)
+
+For a pull request, maintainers can comment:
+
+```text
+/publish-test-image
+```
+
+The workflow will publish a test image with a tag like `seriouslag/actual-auto-sync:pr-<pr-number>-<sha8>` and reply on the PR with the full image name.
+
 ### direct docker run
 
 ```bash

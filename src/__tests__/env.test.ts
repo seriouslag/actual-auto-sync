@@ -19,6 +19,7 @@ vi.mock('dotenv', () => ({
 vi.mock('pino', () => ({
   pino: vi.fn(() => ({
     info: vi.fn(),
+    warn: vi.fn(),
   })),
 }));
 
@@ -267,16 +268,19 @@ describe('Environment Configuration', () => {
       vi.resetModules();
 
       const info = vi.fn();
+      const warn = vi.fn();
       const createEnv = vi.fn(() => ({}));
+      const thrownError = new Error('No .env file');
 
       vi.doMock('dotenv', () => ({
         config: vi.fn(() => {
-          throw new Error('No .env file');
+          throw thrownError;
         }),
       }));
       vi.doMock('pino', () => ({
         pino: vi.fn(() => ({
           info,
+          warn,
         })),
       }));
       vi.doMock('@t3-oss/env-core', () => ({
@@ -285,7 +289,10 @@ describe('Environment Configuration', () => {
 
       await import('../env.js');
 
-      expect(info).toHaveBeenCalledWith('No .env file found. Using system environment variables.');
+      expect(warn).toHaveBeenCalledWith(
+        { err: thrownError },
+        'Unable to load .env file. Using system environment variables.',
+      );
       expect(createEnv).toHaveBeenCalledTimes(1);
     });
   });

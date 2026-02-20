@@ -11,8 +11,8 @@ const logger = pino({
 try {
   config();
   logger.info('Loaded environment variables from .env file.');
-} catch {
-  logger.info('No .env file found. Using system environment variables.');
+} catch (error) {
+  logger.warn({ err: error }, 'Unable to load .env file. Using system environment variables.');
 }
 
 export const budgetIdSchema = z

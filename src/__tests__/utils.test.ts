@@ -18,6 +18,7 @@ import {
 // Mock external dependencies
 vi.mock('node:fs/promises', () => ({
   mkdir: vi.fn(),
+  rm: vi.fn(),
   readdir: vi.fn(),
   readFile: vi.fn(),
 }));
@@ -38,8 +39,8 @@ vi.mock('@actual-app/api', () => ({
 }));
 
 // Import mocked functions
-const { init, shutdown, downloadBudget, loadBudget } = await import('@actual-app/api');
-const { mkdir } = await import('node:fs/promises');
+const { init, shutdown, downloadBudget } = await import('@actual-app/api');
+const { mkdir, rm } = await import('node:fs/promises');
 
 vi.mock('cronstrue', () => ({
   default: {
@@ -61,7 +62,9 @@ vi.mock('../env.js', () => ({
 
 vi.mock('../logger.js', () => ({
   logger: {
+    debug: vi.fn(),
     info: vi.fn(),
+    warn: vi.fn(),
     error: vi.fn(),
   },
 }));
@@ -136,9 +139,9 @@ describe('utils.ts functions', () => {
       const error = new Error('Sync failed');
       vi.mocked(runBankSync).mockRejectedValue(error);
 
-      await syncAllAccounts();
+      await expect(syncAllAccounts()).rejects.toThrow('Sync failed');
 
-      expect(logger.error).toHaveBeenCalledWith({ error }, 'Error syncing all accounts');
+      expect(syncBudget).not.toHaveBeenCalled();
     });
 
     it('should handle errors during budget sync to server', async () => {
@@ -146,10 +149,9 @@ describe('utils.ts functions', () => {
       vi.mocked(runBankSync).mockResolvedValue(undefined);
       vi.mocked(syncBudget).mockRejectedValue(error);
 
-      await syncAllAccounts();
+      await expect(syncAllAccounts()).rejects.toThrow('Budget sync failed');
 
       expect(runBankSync).toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith({ error }, 'Error syncing all accounts');
     });
 
     it('should continue syncing budget when account balance CRDT sync has errors', async () => {
@@ -161,7 +163,7 @@ describe('utils.ts functions', () => {
       await syncAllAccounts();
 
       expect(logger.error).toHaveBeenCalledWith(
-        { error },
+        { err: error },
         'Error syncing account balances through CRDT',
       );
       expect(logger.info).toHaveBeenCalledWith(
@@ -203,7 +205,7 @@ describe('utils.ts functions', () => {
 
       expect(result).toBe(false);
       expect(logger.error).toHaveBeenCalledWith(
-        { error },
+        { err: error },
         'Error syncing account balances through CRDT',
       );
     });
@@ -220,7 +222,7 @@ describe('utils.ts functions', () => {
 
       expect(result).toBe(false);
       expect(logger.error).toHaveBeenCalledWith(
-        { error, accountId: 'acc-1' },
+        { err: error, accountId: 'acc-1' },
         'Error syncing account balance through CRDT for account',
       );
       expect(internal.db.update).toHaveBeenCalledTimes(2);
@@ -322,7 +324,6 @@ describe('utils.ts functions', () => {
       vi.mocked(init).mockResolvedValue(undefined as never);
       vi.mocked(shutdown).mockResolvedValue(undefined as never);
       vi.mocked(downloadBudget).mockResolvedValue(undefined);
-      vi.mocked(loadBudget).mockResolvedValue(undefined);
       vi.mocked(mkdir).mockResolvedValue(undefined);
       vi.mocked(runBankSync).mockResolvedValue(undefined);
       vi.mocked(syncBudget).mockResolvedValue(undefined);
@@ -358,32 +359,6 @@ describe('utils.ts functions', () => {
       expect(shutdown).toHaveBeenCalled();
     });
 
-    it('should load local budgets for matching sync ids', async () => {
-      vi.mocked(readFile).mockReset();
-      vi.mocked(readFile)
-        .mockResolvedValueOnce(JSON.stringify({ groupId: 'budget1', id: 'local-budget-1' }))
-        .mockResolvedValueOnce(JSON.stringify({ groupId: 'budget2', id: 'local-budget-2' }));
-
-      await sync();
-
-      expect(loadBudget).toHaveBeenCalledWith('local-budget-1');
-      expect(loadBudget).toHaveBeenCalledWith('local-budget-2');
-    });
-
-    it('should skip loading budgets when sync ids are not configured', async () => {
-      vi.mocked(readFile).mockReset();
-      vi.mocked(readFile)
-        .mockResolvedValueOnce(JSON.stringify({ groupId: 'other-sync', id: 'local-budget-1' }))
-        .mockResolvedValueOnce(JSON.stringify({ groupId: 'another-sync', id: 'local-budget-2' }));
-
-      await sync();
-
-      expect(loadBudget).not.toHaveBeenCalled();
-      expect(logger.info).toHaveBeenCalledWith(
-        'Sync id other-sync not in ACTUAL_BUDGET_SYNC_IDS, skipping...',
-      );
-    });
-
     it('should download budgets without encryption password when password is missing', async () => {
       mutableEnv.ENCRYPTION_PASSWORDS = ['pass1'];
 
@@ -395,7 +370,7 @@ describe('utils.ts functions', () => {
       expect(downloadBudget).toHaveBeenCalledWith('budget2');
     });
 
-    it('should process budget load and download operations sequentially', async () => {
+    it('should process budget download operations sequentially', async () => {
       let activeOperations = 0;
       let maxConcurrentOperations = 0;
 
@@ -406,12 +381,10 @@ describe('utils.ts functions', () => {
         activeOperations -= 1;
       };
 
-      vi.mocked(loadBudget).mockImplementation(trackOperation);
       vi.mocked(downloadBudget).mockImplementation(trackOperation);
 
       await sync();
 
-      expect(loadBudget).toHaveBeenCalledTimes(2);
       expect(downloadBudget).toHaveBeenCalledTimes(2);
       expect(maxConcurrentOperations).toBe(1);
     });
@@ -433,19 +406,20 @@ describe('utils.ts functions', () => {
       expect(secondDownloadOrder).toBeLessThan(secondBankSyncOrder);
     });
 
-    it('should continue syncing remaining budgets when one download fails', async () => {
+    it('should retry a failed budget download once and continue with remaining budgets', async () => {
       const error = new Error('Download failed');
       vi.mocked(downloadBudget).mockRejectedValueOnce(error).mockResolvedValue(undefined);
 
       await sync();
 
-      expect(logger.error).toHaveBeenCalledWith({ error }, 'Error downloading budget budget1');
-      expect(downloadBudget).toHaveBeenCalledTimes(2);
-      expect(runBankSync).toHaveBeenCalledTimes(1);
-      expect(syncBudget).toHaveBeenCalledTimes(1);
+      expect(downloadBudget).toHaveBeenCalledTimes(3);
+      expect(runBankSync).toHaveBeenCalledTimes(2);
+      expect(syncBudget).toHaveBeenCalledTimes(2);
       expect(downloadBudget).toHaveBeenCalledWith('budget2', {
         password: 'pass2',
       });
+      expect(init).toHaveBeenCalledTimes(2);
+      expect(shutdown).toHaveBeenCalledTimes(2);
     });
 
     it('should avoid startServices race errors when syncing multiple budgets', async () => {
@@ -467,36 +441,31 @@ describe('utils.ts functions', () => {
 
       expect(downloadBudget).toHaveBeenCalledTimes(2);
       expect(logger.error).not.toHaveBeenCalledWith(
-        { error: raceError },
+        { err: raceError },
         expect.stringContaining('Error downloading budget'),
       );
     });
 
-    it('should log budget loading errors and continue', async () => {
-      const error = new Error('Load failed');
+    it('should log budget download errors after retries and continue', async () => {
+      const error = new Error('Download failed');
+      vi.mocked(downloadBudget)
+        .mockRejectedValueOnce(error)
+        .mockRejectedValueOnce(error)
+        .mockResolvedValue(undefined);
       vi.mocked(readFile).mockReset();
       vi.mocked(readFile)
         .mockResolvedValueOnce(JSON.stringify({ groupId: 'budget1', id: 'local-budget-1' }))
-        .mockResolvedValueOnce(JSON.stringify({ groupId: 'budget2', id: 'local-budget-2' }));
-      vi.mocked(loadBudget).mockRejectedValueOnce(error);
+        .mockResolvedValueOnce(JSON.stringify({ groupId: 'budget2', id: 'local-budget-2' }))
+        .mockResolvedValueOnce(JSON.stringify({ groupId: 'budget1', id: 'local-budget-1' }));
 
       await sync();
 
+      expect(vi.mocked(rm)).toHaveBeenCalledWith('data/dir1', { recursive: true, force: true });
       expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ error }),
-        expect.stringContaining('Error loading budget'),
+        { err: error },
+        'Failed to sync budget budget1 after retries.',
       );
-      expect(loadBudget).toHaveBeenCalledWith('local-budget-2');
-      expect(shutdown).toHaveBeenCalled();
-    });
-
-    it('should log budget download errors and continue', async () => {
-      const error = new Error('Download failed');
-      vi.mocked(downloadBudget).mockRejectedValueOnce(error);
-
-      await sync();
-
-      expect(logger.error).toHaveBeenCalledWith({ error }, 'Error downloading budget budget1');
+      expect(downloadBudget).toHaveBeenCalledTimes(3);
       expect(downloadBudget).toHaveBeenCalledWith('budget2', {
         password: 'pass2',
       });
@@ -549,7 +518,7 @@ describe('utils.ts functions', () => {
 
       await expect(sync()).resolves.toBeUndefined();
 
-      expect(logger.error).toHaveBeenCalledWith({ error }, 'Error shutting down the service.');
+      expect(logger.error).toHaveBeenCalledWith({ err: error }, 'Error shutting down the service.');
     });
   });
 });

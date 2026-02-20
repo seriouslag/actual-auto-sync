@@ -552,7 +552,9 @@ describe('utils.ts functions', () => {
       const downloadError = new Error('Download failed');
       const shutdownError = new Error('Retry shutdown failed');
       vi.mocked(downloadBudget).mockRejectedValueOnce(downloadError).mockResolvedValue(undefined);
-      vi.mocked(shutdown).mockRejectedValueOnce(shutdownError).mockResolvedValue(undefined as never);
+      vi.mocked(shutdown)
+        .mockRejectedValueOnce(shutdownError)
+        .mockResolvedValue(undefined as never);
 
       await sync();
 

@@ -416,6 +416,38 @@ describe('utils.ts functions', () => {
       expect(maxConcurrentOperations).toBe(1);
     });
 
+    it('should sync each budget immediately after it is downloaded', async () => {
+      await sync();
+
+      expect(downloadBudget).toHaveBeenCalledTimes(2);
+      expect(runBankSync).toHaveBeenCalledTimes(2);
+      expect(syncBudget).toHaveBeenCalledTimes(2);
+
+      const firstDownloadOrder = vi.mocked(downloadBudget).mock.invocationCallOrder[0];
+      const firstBankSyncOrder = vi.mocked(runBankSync).mock.invocationCallOrder[0];
+      const secondDownloadOrder = vi.mocked(downloadBudget).mock.invocationCallOrder[1];
+      const secondBankSyncOrder = vi.mocked(runBankSync).mock.invocationCallOrder[1];
+
+      expect(firstDownloadOrder).toBeLessThan(firstBankSyncOrder);
+      expect(firstBankSyncOrder).toBeLessThan(secondDownloadOrder);
+      expect(secondDownloadOrder).toBeLessThan(secondBankSyncOrder);
+    });
+
+    it('should continue syncing remaining budgets when one download fails', async () => {
+      const error = new Error('Download failed');
+      vi.mocked(downloadBudget).mockRejectedValueOnce(error).mockResolvedValue(undefined);
+
+      await sync();
+
+      expect(logger.error).toHaveBeenCalledWith({ error }, 'Error downloading budget budget1');
+      expect(downloadBudget).toHaveBeenCalledTimes(2);
+      expect(runBankSync).toHaveBeenCalledTimes(1);
+      expect(syncBudget).toHaveBeenCalledTimes(1);
+      expect(downloadBudget).toHaveBeenCalledWith('budget2', {
+        password: 'pass2',
+      });
+    });
+
     it('should avoid startServices race errors when syncing multiple budgets', async () => {
       let activeDownloads = 0;
       const raceError = new Error('App: startServices called while services are already running');

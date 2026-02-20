@@ -472,6 +472,97 @@ describe('utils.ts functions', () => {
       expect(shutdown).toHaveBeenCalled();
     });
 
+    it('should log debug and warn when retry cache metadata does not match the failed budget', async () => {
+      const downloadError = new Error('Download failed');
+      vi.mocked(downloadBudget).mockRejectedValueOnce(downloadError).mockResolvedValue(undefined);
+      vi.mocked(readdir).mockResolvedValue([
+        { name: 'dir1', isDirectory: () => true },
+      ] as unknown as Awaited<ReturnType<typeof readdir>>);
+      vi.mocked(readFile).mockReset();
+      vi.mocked(readFile).mockResolvedValue(
+        JSON.stringify({ groupId: 'another-budget', id: 'local-budget-1' }),
+      );
+
+      await sync();
+
+      expect(logger.debug).toHaveBeenCalledWith(
+        {
+          budgetId: 'budget1',
+          metadataPath: 'data/dir1/metadata.json',
+          metadataGroupId: 'another-budget',
+        },
+        'Local budget metadata does not match sync ID during cache scan.',
+      );
+      expect(logger.warn).toHaveBeenCalledWith(
+        { budgetId: 'budget1' },
+        'No local cache found for budget budget1; retrying without deleting cache.',
+      );
+    });
+
+    it('should skip non-directory entries while scanning retry cache', async () => {
+      const downloadError = new Error('Download failed');
+      vi.mocked(downloadBudget).mockRejectedValueOnce(downloadError).mockResolvedValue(undefined);
+      vi.mocked(readdir).mockResolvedValue([
+        { name: 'not-a-directory.txt', isDirectory: () => false },
+      ] as unknown as Awaited<ReturnType<typeof readdir>>);
+      vi.mocked(readFile).mockReset();
+
+      await sync();
+
+      expect(readFile).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(
+        { budgetId: 'budget1' },
+        'No local cache found for budget budget1; retrying without deleting cache.',
+      );
+    });
+
+    it('should log debug when retry cache metadata cannot be read', async () => {
+      const downloadError = new Error('Download failed');
+      const metadataReadError = new Error('Metadata read failed');
+      vi.mocked(downloadBudget).mockRejectedValueOnce(downloadError).mockResolvedValue(undefined);
+      vi.mocked(readdir).mockResolvedValue([
+        { name: 'dir1', isDirectory: () => true },
+      ] as unknown as Awaited<ReturnType<typeof readdir>>);
+      vi.mocked(readFile).mockReset();
+      vi.mocked(readFile).mockRejectedValue(metadataReadError);
+
+      await sync();
+
+      expect(logger.debug).toHaveBeenCalledWith(
+        { err: metadataReadError, budgetId: 'budget1', metadataPath: 'data/dir1/metadata.json' },
+        'Skipping local budget cache candidate due to unreadable metadata.',
+      );
+    });
+
+    it('should log error when reading retry cache directories fails', async () => {
+      const downloadError = new Error('Download failed');
+      const readDirsError = new Error('Unable to read data directory');
+      vi.mocked(downloadBudget).mockRejectedValueOnce(downloadError).mockResolvedValue(undefined);
+      vi.mocked(readdir).mockRejectedValue(readDirsError);
+
+      await sync();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        { err: readDirsError, budgetId: 'budget1' },
+        'Error while removing local cache for budget budget1',
+      );
+    });
+
+    it('should log shutdown errors during retry reset and continue syncing', async () => {
+      const downloadError = new Error('Download failed');
+      const shutdownError = new Error('Retry shutdown failed');
+      vi.mocked(downloadBudget).mockRejectedValueOnce(downloadError).mockResolvedValue(undefined);
+      vi.mocked(shutdown).mockRejectedValueOnce(shutdownError).mockResolvedValue(undefined as never);
+
+      await sync();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        { err: shutdownError, budgetId: 'budget1' },
+        'Error shutting down API during retry reset.',
+      );
+      expect(downloadBudget).toHaveBeenCalledTimes(3);
+    });
+
     it('should handle directory creation errors', async () => {
       const error = new Error('Permission denied');
       vi.mocked(mkdir).mockRejectedValue(error);

@@ -157,6 +157,10 @@ async function downloadConfiguredBudgets() {
         await downloadBudget(budgetId);
       }
       logger.info(`Budget ${budgetId} downloaded successfully.`);
+
+      logger.info(`Syncing accounts for budget ${budgetId}...`);
+      await syncAllAccounts();
+      logger.info(`Accounts synced successfully for budget ${budgetId}.`);
     } catch (error) {
       logger.error({ error }, `Error downloading budget ${budgetId}`);
     }
@@ -197,10 +201,6 @@ async function runSyncCycle() {
     const syncIdToBudgetId = await getSyncIdMaps(ACTUAL_DATA_DIR);
     await loadConfiguredBudgets(syncIdToBudgetId);
     await downloadConfiguredBudgets();
-
-    logger.info('Syncing accounts...');
-    await syncAllAccounts();
-    logger.info('Accounts synced successfully.');
   } catch (error) {
     logger.error({ error }, 'Error starting the service.');
   }

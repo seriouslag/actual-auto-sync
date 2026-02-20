@@ -12,6 +12,8 @@
     "nursery": "warn"
   },
   "rules": {
+    "eslint/capitalized-comments": "off",
+    "eslint/max-statements": "off",
     "eslint/no-plusplus": "off",
     "eslint/no-await-in-loop": "off",
     "eslint/no-console": "off",

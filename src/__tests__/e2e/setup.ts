@@ -110,6 +110,11 @@ export async function waitForServer(maxAttempts = 30, delayMs = 1000): Promise<v
  * Initialize the Actual API connection
  */
 export async function initApi(): Promise<void> {
+  // @actual-app/api export/upload paths read this env var directly.
+  // Keep it aligned with the dataDir we initialize with so E2E runs are consistent
+  // both inside and outside docker-compose.
+  process.env.ACTUAL_DATA_DIR = E2E_CONFIG.dataDir;
+
   await mkdir(E2E_CONFIG.dataDir, { recursive: true });
 
   await api.init({

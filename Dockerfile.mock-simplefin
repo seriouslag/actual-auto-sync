@@ -9,7 +9,7 @@
 # Run:
 #   docker run -p 8080:8080 mock-simplefin
 
-FROM node:24.13.0-slim
+FROM node:24.13.1-slim
 
 WORKDIR /app
 

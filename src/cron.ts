@@ -10,7 +10,8 @@ export async function onTick(onCompleteCallback: () => Promise<void> | void) {
   try {
     await sync();
   } catch (error) {
-    logger.error({ error }, 'Error running sync. Shutting down...');
+    logger.error({ err: error }, 'Error running sync. Shutting down...');
+    logger.warn('Sync run failed; attempting graceful API shutdown.');
     await shutdown();
     logger.info('Shutdown complete.');
   }

@@ -16,7 +16,9 @@ vi.mock('../env.js', () => ({
 
 vi.mock('../logger.js', () => ({
   logger: {
+    debug: vi.fn(),
     info: vi.fn(),
+    warn: vi.fn(),
     error: vi.fn(),
   },
 }));
@@ -87,7 +89,7 @@ describe('cron.ts functions', () => {
 
       expect(mockSync).toHaveBeenCalledOnce();
       expect(mockLogger.error).toHaveBeenCalledWith(
-        { error: syncError },
+        { err: syncError },
         'Error running sync. Shutting down...',
       );
       expect(mockShutdown).toHaveBeenCalledOnce();
@@ -107,7 +109,7 @@ describe('cron.ts functions', () => {
 
       expect(mockSync).toHaveBeenCalledOnce();
       expect(mockLogger.error).toHaveBeenCalledWith(
-        { error: syncError },
+        { err: syncError },
         'Error running sync. Shutting down...',
       );
       expect(mockShutdown).toHaveBeenCalledOnce();

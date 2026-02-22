@@ -28,7 +28,7 @@
     "prepare": "node -e \"const fs=require('node:fs'); const cp=require('node:child_process'); if (fs.existsSync('.git')) cp.execSync('lefthook install', { stdio: 'inherit' });\""
   },
   "dependencies": {
-    "@actual-app/api": "^26.2.0",
+    "@actual-app/api": "^26.2.1",
     "@actual-app/crdt": "^2.1.0",
     "@t3-oss/env-core": "^0.13.10",
     "better-sqlite3": "^12.6.2",

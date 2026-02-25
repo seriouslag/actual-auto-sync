@@ -28,6 +28,18 @@ The service requires the following environment variables:
 
 You can find your budget sync IDs in the Actual Budget app > _Selected Budget_ > Settings > Advanced Settings > Sync ID.
 
+### Environment variables from files (Docker secrets)
+
+You can set any environment variable from a file by using a special append `_FILE`.
+
+As an example:
+
+```bash
+-e MYVAR_FILE=/run/secrets/mysecretvariable
+```
+
+Will set the environment variable `MYVAR` based on the contents of the `/run/secrets/mysecretvariable` file.
+
 ### If using with OIDC auth provider in Actual Budget Server
 
 In your Actual Budget Server config, you must be able to log in with a password.
@@ -98,6 +110,43 @@ services:
       - TIMEZONE=Etc/UTC
   ...
 ```
+
+### Running with docker compose with docker secrets
+
+```yaml
+services:
+...
+  actual-auto-sync:
+    image: seriouslag/actual-auto-sync:latest
+    secrets:
+      - actual_budget_sync_id
+      - actual_server_password
+      - encryption_passwords
+    environment:
+      - ACTUAL_SERVER_URL=your-server-url
+      - ACTUAL_SERVER_PASSWORD_FILE=/run/secrets/actual_budget_sync_id
+      - CRON_SCHEDULE=0 1 * * *
+      - LOG_LEVEL=info
+      - ACTUAL_BUDGET_SYNC_IDS_FILE=/run/secrets/actual_server_password
+      - ENCRYPTION_PASSWORDS_FILE=/run/secrets/encryption_passwords
+      - TIMEZONE=Etc/UTC
+  ...
+
+secrets:
+  actual_budget_sync_id:
+    file: actual_budget_sync_id.txt
+  actual_server_password:
+    file: actual_server_password.txt
+  encryption_passwords:
+    file: encryption_passwords.txt
+```
+
+Where files
+
+- `actual_budget_sync_id.txt`
+- `actual_server_password.txt`
+- `encryption_passwords.txt`
+  are file text files next to your `docker-compose.yml` and containing your secrets
 
 ## Development
 

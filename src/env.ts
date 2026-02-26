@@ -4,6 +4,8 @@ import { IANAZone } from 'luxon';
 import { pino } from 'pino';
 import { z } from 'zod';
 
+import { getConfiguration } from './docker-secret.js';
+
 const logger = pino({
   level: 'info',
 });
@@ -119,7 +121,16 @@ export const env = createEnv({
    * What object holds the environment variables at runtime. This is usually
    * `process.env` or `import.meta.env`.
    */
-  runtimeEnv: process.env,
+  runtimeEnv: {
+    ACTUAL_BUDGET_SYNC_IDS: await getConfiguration('ACTUAL_BUDGET_SYNC_IDS'),
+    ACTUAL_SERVER_PASSWORD: await getConfiguration('ACTUAL_SERVER_PASSWORD'),
+    ACTUAL_SERVER_URL: await getConfiguration('ACTUAL_SERVER_URL'),
+    CRON_SCHEDULE: await getConfiguration('CRON_SCHEDULE'),
+    ENCRYPTION_PASSWORDS: await getConfiguration('ENCRYPTION_PASSWORDS'),
+    LOG_LEVEL: await getConfiguration('LOG_LEVEL'),
+    RUN_ON_START: await getConfiguration('RUN_ON_START'),
+    TIMEZONE: await getConfiguration('TIMEZONE'),
+  },
 
   server: {
     ACTUAL_BUDGET_SYNC_IDS: budgetIdSchema,

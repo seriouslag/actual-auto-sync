@@ -18,6 +18,9 @@ FROM builder
 COPY --from=build --chown=node:node /app/node_modules /app/node_modules
 COPY --from=build --chown=node:node /app/dist /app/dist
 
+RUN mkdir -p /data \
+  && chown node:node /data
+
 # Environment variables
 ENV ACTUAL_SERVER_URL=""
 ENV ACTUAL_DATA_DIR=""

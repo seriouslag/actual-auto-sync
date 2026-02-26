@@ -84,6 +84,8 @@ The workflow will publish a test image with a tag like `seriouslag/actual-auto-s
 
 ```bash
 docker run -d \
+  --read-only \
+  --mount type=tmpfs,destination=/data,tmpfs-mode=0770,uid=1000,gid=1000 \
   -e ACTUAL_SERVER_URL="your-server-url" \
   -e ACTUAL_SERVER_PASSWORD="your-password" \
   -e CRON_SCHEDULE="0 1 * * *" \
@@ -102,6 +104,9 @@ services:
 ...
   actual-auto-sync:
     image: seriouslag/actual-auto-sync:latest
+    read_only: true
+    tmpfs:
+      - /data:size=10G,mode=0700,uid=1000,gid=1000
     environment:
       - ACTUAL_SERVER_URL=your-server-url
       - ACTUAL_SERVER_PASSWORD=your-password
@@ -120,6 +125,9 @@ services:
 ...
   actual-auto-sync:
     image: seriouslag/actual-auto-sync:latest
+    read_only: true
+    tmpfs:
+      - /data:size=10G,mode=0700,uid=1000,gid=1000
     secrets:
       - actual_budget_sync_id
       - actual_server_password

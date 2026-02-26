@@ -40,6 +40,8 @@ As an example:
 
 Will set the environment variable `MYVAR` based on the contents of the `/run/secrets/mysecretvariable` file.
 
+If both `MYVAR` and `MYVAR_FILE` are set, `MYVAR_FILE` takes precedence.
+
 ### If using with OIDC auth provider in Actual Budget Server
 
 In your Actual Budget Server config, you must be able to log in with a password.

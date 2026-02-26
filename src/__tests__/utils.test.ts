@@ -17,6 +17,7 @@ import {
 
 // Mock external dependencies
 vi.mock('node:fs/promises', () => ({
+  access: vi.fn(),
   mkdir: vi.fn(),
   rm: vi.fn(),
   readdir: vi.fn(),

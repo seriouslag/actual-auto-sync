@@ -21,7 +21,7 @@ COPY --from=build /app/dist /app/dist
 # Environment variables
 ENV ACTUAL_SERVER_URL=""
 # once a day at 1am in America/New_York
-ENV CRON_SCHEDULE="0 1 * * *" 
+ENV CRON_SCHEDULE="0 1 * * *"
 ENV LOG_LEVEL="info"
 ENV ACTUAL_BUDGET_SYNC_IDS=""
 ENV ENCRYPTION_PASSWORDS=""

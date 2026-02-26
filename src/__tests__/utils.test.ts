@@ -73,6 +73,7 @@ describe('utils.ts functions', () => {
   const mutableEnv = env as unknown as {
     ACTUAL_BUDGET_SYNC_IDS: string[];
     ENCRYPTION_PASSWORDS: string[];
+    LOG_LEVEL: typeof env.LOG_LEVEL;
   };
   let cronstrueMock: { toString: ReturnType<typeof vi.fn> };
 
@@ -85,6 +86,32 @@ describe('utils.ts functions', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe('verbosity', () => {
+    it('verbose', async () => {
+      mutableEnv.LOG_LEVEL = 'info';
+      await sync();
+
+      expect(init).toHaveBeenCalledWith({
+        dataDir: './data',
+        serverURL: 'http://localhost:5006',
+        password: 'test-password',
+        verbose: true,
+      });
+    });
+
+    it('quiet', async () => {
+      mutableEnv.LOG_LEVEL = 'warn';
+      await sync();
+
+      expect(init).toHaveBeenCalledWith({
+        dataDir: './data',
+        serverURL: 'http://localhost:5006',
+        password: 'test-password',
+        verbose: false,
+      });
+    });
   });
 
   describe('formatCronSchedule', () => {

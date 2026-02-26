@@ -15,7 +15,7 @@ import cronstrue from 'cronstrue';
 import { env } from './env.js';
 import { logger } from './logger.js';
 
-const ACTUAL_DATA_DIR = './data';
+const { ACTUAL_DATA_DIR } = env;
 // Keep retries small to avoid long loops while still healing transient API/session issues.
 const MAX_BUDGET_SYNC_ATTEMPTS = 2;
 

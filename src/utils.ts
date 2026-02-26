@@ -119,6 +119,7 @@ async function createDataDirAndInitApi() {
       dataDir: ACTUAL_DATA_DIR,
       serverURL: env.ACTUAL_SERVER_URL,
       password: env.ACTUAL_SERVER_PASSWORD,
+      verbose: ['debug', 'info'].includes(env.LOG_LEVEL),
     });
     logger.info('Actual API initialized successfully.');
   } catch (error) {

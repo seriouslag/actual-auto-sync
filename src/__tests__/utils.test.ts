@@ -354,6 +354,7 @@ describe('utils.ts functions', () => {
         dataDir: './data',
         serverURL: 'http://localhost:5006',
         password: 'test-password',
+        verbose: false,
       });
       expect(cronstrueMock.toString).toHaveBeenCalledWith('0 0 * * *');
       expect(shutdown).toHaveBeenCalled();

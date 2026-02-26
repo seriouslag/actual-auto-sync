@@ -15,8 +15,8 @@ RUN pnpm run build
 
 
 FROM builder
-COPY --from=build /app/node_modules /app/node_modules
-COPY --from=build /app/dist /app/dist
+COPY --from=build --chown=node:node /app/node_modules /app/node_modules
+COPY --from=build --chown=node:node /app/dist /app/dist
 
 # Environment variables
 ENV ACTUAL_SERVER_URL=""
@@ -29,4 +29,5 @@ ENV ENCRYPTION_PASSWORDS=""
 ENV TIMEZONE="America/New_York"
 
 # Start the application
+USER node
 CMD ["node", "dist/src/index.js"]

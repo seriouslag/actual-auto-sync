@@ -124,10 +124,10 @@ services:
       - encryption_passwords
     environment:
       - ACTUAL_SERVER_URL=your-server-url
-      - ACTUAL_SERVER_PASSWORD_FILE=/run/secrets/actual_budget_sync_id
+      - ACTUAL_SERVER_PASSWORD_FILE=/run/secrets/actual_server_password
       - CRON_SCHEDULE=0 1 * * *
       - LOG_LEVEL=info
-      - ACTUAL_BUDGET_SYNC_IDS_FILE=/run/secrets/actual_server_password
+      - ACTUAL_BUDGET_SYNC_IDS_FILE=/run/secrets/actual_budget_sync_id
       - ENCRYPTION_PASSWORDS_FILE=/run/secrets/encryption_passwords
       - TIMEZONE=Etc/UTC
   ...

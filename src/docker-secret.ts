@@ -1,11 +1,7 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile, stat } from 'node:fs/promises';
 
 const SECRET_SUFFIX = '_FILE';
 
-type Secrets = Record<string, string>;
-
-// return on secret
 export async function getSecret(secretPath: string): Promise<string> {
   const stats = await stat(secretPath);
   if (!stats.isFile()) {
@@ -13,20 +9,6 @@ export async function getSecret(secretPath: string): Promise<string> {
   }
   const secret = await readFile(secretPath, 'utf8');
   return secret.trim();
-}
-
-// return all secrets
-export async function getSecrets(secretDir: string): Promise<Secrets> {
-  const secrets: Secrets = {};
-  const stats = await stat(secretDir);
-  if (!stats.isDirectory()) {
-    throw new Error(`secret directory don't exists: ${secretDir}`);
-  }
-  for (const file of await readdir(secretDir)) {
-    secrets[file] = await getSecret(join(secretDir, file));
-  }
-
-  return secrets;
 }
 
 export async function getConfiguration(envName: string): Promise<string | undefined> {

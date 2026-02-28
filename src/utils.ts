@@ -1,5 +1,5 @@
-import { type Dirent, constants } from 'node:fs';
-import { access, mkdir, readFile, readdir, rm } from 'node:fs/promises';
+import type { Dirent } from 'node:fs';
+import { mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import {
@@ -109,24 +109,11 @@ export async function syncAllAccounts() {
   await syncBudgetToServer();
 }
 
-async function testDataDirPermission() {
-  try {
-    logger.info(`Checking data directory write permission ${ACTUAL_DATA_DIR}`);
-    // eslint-disable-next-line no-bitwise
-    await access(ACTUAL_DATA_DIR, constants.R_OK | constants.W_OK);
-    logger.info('Data directory permission correct');
-  } catch (error) {
-    logger.error({ err: error }, 'Data directory permission incorrect');
-    throw error;
-  }
-}
-
 async function createDataDirAndInitApi() {
   try {
     logger.info(`Creating data directory ${ACTUAL_DATA_DIR}`);
     await mkdir(ACTUAL_DATA_DIR, { recursive: true });
     logger.info('Data directory created successfully.');
-    await testDataDirPermission();
     logger.info('Initializing Actual API...');
     await init({
       dataDir: ACTUAL_DATA_DIR,

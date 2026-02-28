@@ -57,6 +57,7 @@ vi.mock('../env.js', () => ({
     ENCRYPTION_PASSWORDS: ['pass1', 'pass2'],
     TIMEZONE: 'Etc/UTC',
     RUN_ON_START: false,
+    ACTUAL_DATA_DIR: './data',
   },
 }));
 

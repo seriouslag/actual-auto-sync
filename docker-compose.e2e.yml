@@ -45,6 +45,11 @@ services:
         condition: service_healthy
       mock-simplefin:
         condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /data:size=10G,mode=0700,uid=1000,gid=1000
+      - /app/node_modules/.vite-temp:size=100M,mode=0700,uid=1000,gid=1000
+      - /tmp:size=100M,mode=0700,uid=1000,gid=1000
     environment:
       - ACTUAL_SERVER_URL=http://actual-server:5006
       - ACTUAL_SERVER_PASSWORD=test-password-e2e

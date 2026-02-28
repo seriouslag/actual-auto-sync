@@ -94,6 +94,11 @@ export const serverUrlSchema = z.string().trim().min(1);
  */
 export const serverPasswordSchema = z.string().min(1);
 
+/**
+ * Actual data directory
+ */
+export const actualDataDirSchema = z.string().trim().optional().default('/data');
+
 export const env = createEnv({
   client: {},
   /**
@@ -141,5 +146,6 @@ export const env = createEnv({
     LOG_LEVEL: logLevelSchema,
     RUN_ON_START: runOnStartSchema,
     TIMEZONE: timezoneSchema,
+    ACTUAL_DATA_DIR: actualDataDirSchema,
   },
 });

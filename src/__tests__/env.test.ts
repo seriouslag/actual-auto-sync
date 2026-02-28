@@ -24,7 +24,7 @@ vi.mock('pino', () => ({
 }));
 
 vi.mock('@t3-oss/env-core', () => ({
-  createEnv: vi.fn(),
+  createEnv: vi.fn(() => ({ LOG_LEVEL: 'info' })),
 }));
 
 describe('Environment Configuration', () => {

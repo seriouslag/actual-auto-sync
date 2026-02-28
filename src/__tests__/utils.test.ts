@@ -60,14 +60,18 @@ vi.mock('../env.js', () => ({
   },
 }));
 
-vi.mock('../logger.js', () => ({
-  logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
+vi.mock('../logger.js', async (importOriginal) => {
+  const originalModule = (await importOriginal()) as { isVerbose: (logLevel: string) => boolean };
+  return {
+    logger: {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    },
+    isVerbose: vi.fn(originalModule.isVerbose),
+  };
+});
 
 describe('utils.ts functions', () => {
   const mutableEnv = env as unknown as {

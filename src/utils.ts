@@ -13,7 +13,7 @@ import {
 import cronstrue from 'cronstrue';
 
 import { env } from './env.js';
-import { logger } from './logger.js';
+import { isVerbose, logger } from './logger.js';
 
 const ACTUAL_DATA_DIR = './data';
 // Keep retries small to avoid long loops while still healing transient API/session issues.
@@ -119,7 +119,7 @@ async function createDataDirAndInitApi() {
       dataDir: ACTUAL_DATA_DIR,
       serverURL: env.ACTUAL_SERVER_URL,
       password: env.ACTUAL_SERVER_PASSWORD,
-      verbose: ['debug', 'info'].includes(env.LOG_LEVEL),
+      verbose: isVerbose(env.LOG_LEVEL),
     });
     logger.info('Actual API initialized successfully.');
   } catch (error) {

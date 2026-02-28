@@ -1,17 +1,15 @@
 import { createEnv } from '@t3-oss/env-core';
 import { config } from 'dotenv';
 import { IANAZone } from 'luxon';
-import { pino } from 'pino';
 import { z } from 'zod';
 
 import { getConfiguration } from './docker-secret.js';
-
-const logger = pino({
-  level: 'info',
-});
+import { isVerbose, logger } from './logger.js';
 
 try {
-  config();
+  const level = process.env.LOG_LEVEL ?? 'info';
+  config({ quiet: !isVerbose(level) });
+  logger.level = level;
   logger.info('Loaded environment variables from .env file.');
 } catch (error) {
   logger.warn({ err: error }, 'Unable to load .env file. Using system environment variables.');

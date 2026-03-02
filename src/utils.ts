@@ -14,6 +14,7 @@ import cronstrue from 'cronstrue';
 
 import { env } from './env.js';
 import { logger } from './logger.js';
+import { markSyncComplete, markSyncStart } from './status.js';
 
 const ACTUAL_DATA_DIR = './data';
 // Keep retries small to avoid long loops while still healing transient API/session issues.
@@ -275,16 +276,28 @@ export async function getSyncIdMaps(dataDir: string) {
   }
 }
 
-async function runSyncCycle() {
+type SyncCycleResult =
+  | {
+      success: true;
+    }
+  | {
+      success: false;
+      error: Error;
+    };
+
+async function runSyncCycle(): Promise<SyncCycleResult> {
   try {
     await createDataDirAndInitApi();
 
     logger.info(`Scheduling sync to run ${formatCronSchedule(env.CRON_SCHEDULE)}...`);
     // Main sync work for one cron tick.
     await downloadConfiguredBudgets();
+    return { success: true };
   } catch (error) {
     logger.error({ err: error }, 'Error starting the service.');
     logger.warn('Sync cycle did not complete successfully.');
+    const normalizedError = error instanceof Error ? error : new Error(String(error));
+    return { success: false, error: normalizedError };
   }
 }
 
@@ -296,9 +309,15 @@ async function shutdownApi() {
 
 /** Entry point for one service run: init, per-budget sync cycle, and guaranteed shutdown. */
 export const sync = async () => {
+  markSyncStart();
   logger.info('Starting service...');
   try {
-    await runSyncCycle();
+    const runResult = await runSyncCycle();
+    markSyncComplete(runResult.success, runResult.success ? undefined : runResult.error);
+  } catch (error) {
+    const normalizedError = error instanceof Error ? error : new Error(String(error));
+    markSyncComplete(false, normalizedError);
+    throw error;
   } finally {
     try {
       await shutdownApi();

@@ -150,6 +150,16 @@ Where files
 - `encryption_passwords.txt`
   are file text files next to your `docker-compose.yml` and containing your secrets
 
+## Web UI
+
+A lightweight dashboard is exposed by the service as long as `WEB_UI_ENABLED` is not set to `false`, `0`, or `off`. It refreshes every 15 seconds and shows the friendly cron description, next run prediction, configured sync IDs, and the timing plus error state of the last run. Open `http://localhost:4000` (or whatever port you configure) in a browser; just make sure the port is reachable from your host or container network.
+
+### Web UI environment variables
+
+- `WEB_UI_ENABLED` (default `true`; accepts `true`, `1`, `yes`, `on`): toggle the dashboard on or off.
+- `WEB_UI_PORT` (default `4000`): the listening port for the dashboard HTTP server.
+- `WEB_UI_HOST` (default `0.0.0.0`): the bind address for the dashboard HTTP server.
+
 ## Development
 
 ### Prerequisites

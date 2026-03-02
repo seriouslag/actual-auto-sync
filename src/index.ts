@@ -1,4 +1,5 @@
 import { createCronJob } from './cron.js';
+import { startWebUi } from './web-ui.js';
 import { logger } from './logger.js';
 
 // Global error handlers to catch uncaught exceptions
@@ -18,4 +19,5 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const cronJob = createCronJob();
+startWebUi(cronJob);
 cronJob.start();

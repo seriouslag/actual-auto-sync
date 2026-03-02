@@ -12,8 +12,6 @@ import {
 import { getCronSchedule, setCronSchedule } from './cron-config.js';
 import { logger } from './logger.js';
 
-const REFRESH_INTERVAL = 15000;
-
 const pageHtml = `<!doctype html>
 <html lang="en">
   <head>
@@ -853,12 +851,13 @@ async function handleScheduleUpdate(
       res.end(JSON.stringify({ message: 'cronSchedule is required' }));
       return;
     }
+    new CronTime(cronValue, env.TIMEZONE);
     await setCronSchedule(cronValue);
     const wasRunning = Boolean(cronJob.running);
     if (wasRunning) {
       cronJob.stop();
     }
-    cronJob.setTime(new CronTime(cronValue));
+    cronJob.setTime(new CronTime(cronValue, env.TIMEZONE));
     if (wasRunning) {
       cronJob.start();
     }

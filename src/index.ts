@@ -1,6 +1,8 @@
 import { createCronJob } from './cron.js';
 import { startWebUi } from './web-ui.js';
 import { logger } from './logger.js';
+import { env } from './env.js';
+import { initializeCronSchedule } from './cron-config.js';
 
 // Global error handlers to catch uncaught exceptions
 process.on('uncaughtException', (error) => {
@@ -18,6 +20,14 @@ process.on('unhandledRejection', (reason, promise) => {
   );
 });
 
-const cronJob = createCronJob();
-startWebUi(cronJob);
-cronJob.start();
+const main = async () => {
+  await initializeCronSchedule(env.CRON_SCHEDULE);
+  const cronJob = createCronJob();
+  startWebUi(cronJob);
+  cronJob.start();
+};
+
+void main().catch((error) => {
+  logger.error({ err: error }, 'Failed to start cron job. Exiting.');
+  process.exit(1);
+});

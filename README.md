@@ -152,7 +152,9 @@ Where files
 
 ## Web UI
 
-A lightweight dashboard is exposed by the service as long as `WEB_UI_ENABLED` is not set to `false`, `0`, or `off`. It refreshes every 15 seconds and shows the friendly cron description, next run prediction, configured sync IDs, and the timing plus error state of the last run. Open `http://localhost:4000` (or whatever port you configure) in a browser; just make sure the port is reachable from your host or container network.
+A lightweight dashboard is exposed by the service as long as `WEB_UI_ENABLED` is not set to `false`, `0`, or `off`. It refreshes every 15 seconds and shows the friendly cron description, next run prediction, configured sync IDs, the timing/error state of the last run, and the most recent run history. Open `http://localhost:4000` (or whatever port you configure) in a browser; just make sure the port is reachable from your host or container network.
+
+You can also update the scheduled `CRON_SCHEDULE` from within the dashboard using the schedule editor. The UI validates cron expressions and persists the new schedule so it survives restarts without needing to rebuild the container.
 
 ### Web UI environment variables
 

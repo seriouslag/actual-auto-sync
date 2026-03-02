@@ -1,10 +1,15 @@
-import { createServer, type Server } from 'node:http';
-import { CronJob } from 'cron';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { CronJob, CronTime } from 'cron';
 import { DateTime } from 'luxon';
 
 import { env } from './env.js';
 import { formatCronSchedule } from './utils.js';
-import { getSyncStatus, type SyncStatusSnapshot } from './status.js';
+import {
+  computeDuration,
+  getSyncStatus,
+  type SyncStatusSnapshot,
+} from './status.js';
+import { getCronSchedule, setCronSchedule } from './cron-config.js';
 import { logger } from './logger.js';
 
 const REFRESH_INTERVAL = 15000;
@@ -281,6 +286,136 @@ const pageHtml = `<!doctype html>
         display: none;
       }
 
+      .history-panel,
+      .cron-panel {
+        margin-top: 1.5rem;
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 1.75rem;
+        border-radius: var(--card-radius);
+        box-shadow: 0 30px 55px rgba(3, 7, 18, 0.45);
+        animation: floatCard 1.3s ease forwards;
+      }
+
+      .history-grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+      }
+
+      .history-card {
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 18px;
+        padding: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .history-card[data-result='success'] {
+        border-color: rgba(142, 249, 177, 0.4);
+        background: rgba(142, 249, 177, 0.08);
+      }
+
+      .history-card[data-result='failure'] {
+        border-color: rgba(255, 99, 71, 0.45);
+        background: rgba(255, 99, 71, 0.1);
+      }
+
+      .history-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .history-status {
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+
+      .history-error {
+        font-size: 0.85rem;
+        color: #ffb2b2;
+      }
+
+      .history-duration {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .cron-form {
+        margin-top: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+
+      .cron-input-group {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.75rem;
+        align-items: end;
+      }
+
+      .cron-input {
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 0.75rem 1rem;
+        color: var(--text);
+        font-size: 0.95rem;
+      }
+
+      .cron-input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(114, 248, 212, 0.25);
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .cron-button {
+        border-radius: 999px;
+        border: none;
+        padding: 0.85rem 1.5rem;
+        background: linear-gradient(135deg, #72f8d4, #3fd1e0);
+        color: #04101d;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 12px 25px rgba(50, 210, 225, 0.35);
+      }
+
+      .cron-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      .cron-button:not(:disabled):hover {
+        transform: translateY(-1px);
+      }
+
+      .cron-message {
+        margin: 0;
+        font-size: 0.85rem;
+        min-height: 1.25rem;
+        color: var(--muted);
+      }
+
+      .cron-message.error {
+        color: #ffb2b2;
+      }
+
+      .cron-message.success {
+        color: var(--success);
+      }
+
       @keyframes floatCard {
         from {
           transform: translateY(20px);
@@ -372,6 +507,18 @@ const pageHtml = `<!doctype html>
           <span data-last-error>—</span>
         </p>
       </section>
+      <section class="history-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Run history</p>
+            <h3>Recent sync cycles</h3>
+          </div>
+          <p class="caption" data-history-count>— records</p>
+        </div>
+        <div class="history-grid" data-history-list>
+          <span class="sync-chip placeholder">Loading recent runs…</span>
+        </div>
+      </section>
       <section class="budgets-panel">
         <div class="panel-header">
           <div>
@@ -383,10 +530,38 @@ const pageHtml = `<!doctype html>
           <span class="sync-chip placeholder">Loading configured budgets…</span>
         </div>
       </section>
+      <section class="cron-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Schedule editor</p>
+            <h3>Modify the cron</h3>
+          </div>
+        </div>
+        <form class="cron-form" data-cron-form>
+          <label class="muted-label" for="cron-input">Cron expression</label>
+          <div class="cron-input-group">
+            <input
+              id="cron-input"
+              class="cron-input"
+              type="text"
+              placeholder="0 1 * * *"
+              inputmode="numeric"
+              data-cron-input
+            />
+            <button class="cron-button" type="submit" data-cron-submit>Save</button>
+          </div>
+          <p class="caption">
+            Accepts standard <a href="https://crontab.guru/" target="_blank" rel="noreferrer">cron expressions</a>.
+          </p>
+          <p class="cron-message" data-cron-message>Last saved schedule will be reflected across runs.</p>
+        </form>
+      </section>
     </div>
     <script type="module">
       const REFRESH_INTERVAL = 15000;
       const fallbackText = '—';
+      const historyLimit = 8;
+
       const formatTimestamp = (value) => {
         if (!value) {
           return 'Not run yet';
@@ -400,12 +575,14 @@ const pageHtml = `<!doctype html>
           timeStyle: 'short',
         }).format(parsed);
       };
+
       const setText = (selector, value) => {
         const element = document.querySelector(selector);
         if (element) {
           element.textContent = value ?? fallbackText;
         }
       };
+
       const renderSyncIds = (ids) => {
         const list = document.querySelector('[data-sync-list]');
         if (!list) {
@@ -427,6 +604,7 @@ const pageHtml = `<!doctype html>
           list.appendChild(chip);
         });
       };
+
       const updateStatusBadge = (status) => {
         const badge = document.querySelector('[data-last-status]');
         if (!badge) {
@@ -446,6 +624,7 @@ const pageHtml = `<!doctype html>
           badge.dataset.state = 'idle';
         }
       };
+
       const toggleError = (message) => {
         const wrapper = document.querySelector('[data-last-error-wrapper]');
         const element = document.querySelector('[data-last-error]');
@@ -459,6 +638,81 @@ const pageHtml = `<!doctype html>
           wrapper.classList.add('hidden');
         }
       };
+
+      const historyList = document.querySelector('[data-history-list]');
+      const historyCount = document.querySelector('[data-history-count]');
+      const cronForm = document.querySelector('[data-cron-form]');
+      const cronInput = document.querySelector('[data-cron-input]');
+      const cronSubmit = document.querySelector('[data-cron-submit]');
+      const cronMessage = document.querySelector('[data-cron-message]');
+
+      const updateHistoryCount = (count) => {
+        if (!historyCount) {
+          return;
+        }
+        historyCount.textContent = count > 0 ? `${count} run${count === 1 ? '' : 's'}` : 'No runs yet';
+      };
+
+      const renderRunHistory = (entries) => {
+        if (!historyList) {
+          return;
+        }
+        historyList.innerHTML = '';
+        if (!entries || entries.length === 0) {
+          const placeholder = document.createElement('span');
+          placeholder.className = 'sync-chip placeholder';
+          placeholder.textContent = 'No runs yet';
+          historyList.appendChild(placeholder);
+          updateHistoryCount(0);
+          return;
+        }
+        entries.slice(0, historyLimit).forEach((entry) => {
+          const card = document.createElement('article');
+          card.className = 'history-card';
+          if (entry.result) {
+            card.dataset.result = entry.result;
+          }
+          const meta = document.createElement('div');
+          meta.className = 'history-meta';
+          const time = document.createElement('strong');
+          time.textContent = formatTimestamp(entry.start);
+          const duration = document.createElement('span');
+          duration.textContent = entry.duration ?? fallbackText;
+          meta.append(time, duration);
+          card.append(meta);
+          const status = document.createElement('p');
+          status.className = 'history-status';
+          status.textContent = entry.result ? entry.result.toUpperCase() : 'PENDING';
+          card.append(status);
+          if (entry.error) {
+            const error = document.createElement('p');
+            error.className = 'history-error';
+            error.textContent = entry.error;
+            card.append(error);
+          }
+          historyList.appendChild(card);
+        });
+        updateHistoryCount(entries.length);
+      };
+
+      const updateCronInput = (schedule) => {
+        if (!cronInput) {
+          return;
+        }
+        cronInput.value = schedule;
+      };
+
+      const setCronMessage = (message, variant) => {
+        if (!cronMessage) {
+          return;
+        }
+        cronMessage.textContent = message;
+        cronMessage.classList.remove('success', 'error');
+        if (variant) {
+          cronMessage.classList.add(variant);
+        }
+      };
+
       const updateDashboard = (payload) => {
         setText('[data-cron-human]', payload.cronHuman);
         setText('[data-cron-schedule]', `CRON · ${payload.cronSchedule}`);
@@ -474,7 +728,43 @@ const pageHtml = `<!doctype html>
         updateStatusBadge(payload.status);
         toggleError(payload.status.lastSyncError);
         renderSyncIds(payload.syncIds ?? []);
+        renderRunHistory(payload.status.history ?? []);
+        updateCronInput(payload.cronSchedule);
+        setCronMessage('Last saved schedule will be reflected across runs.');
       };
+
+      const handleCronSubmit = async (event) => {
+        event.preventDefault();
+        if (!cronInput || !cronSubmit) {
+          return;
+        }
+        const cronValue = cronInput.value.trim();
+        if (!cronValue) {
+          setCronMessage('Please provide a cron expression.', 'error');
+          return;
+        }
+        cronSubmit.disabled = true;
+        setCronMessage('Saving…');
+        try {
+          const response = await fetch('/api/schedule', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cronSchedule: cronValue }),
+          });
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload?.message ?? `Request failed with ${response.status}`);
+          }
+          setCronMessage('Schedule saved.', 'success');
+          await refreshStatus();
+        } catch (error) {
+          console.error(error);
+          setCronMessage(error instanceof Error ? error.message : 'Unable to update schedule', 'error');
+        } finally {
+          cronSubmit.disabled = false;
+        }
+      };
+
       const refreshStatus = async () => {
         try {
           const response = await fetch('/api/status', { cache: 'no-store' });
@@ -490,8 +780,11 @@ const pageHtml = `<!doctype html>
             badge.textContent = 'Unable to load status';
             badge.dataset.state = 'error';
           }
+          setCronMessage('Unable to refresh status.', 'error');
         }
       };
+
+      cronForm?.addEventListener('submit', handleCronSubmit);
       window.addEventListener('DOMContentLoaded', () => {
         refreshStatus();
         setInterval(refreshStatus, REFRESH_INTERVAL);
@@ -513,26 +806,14 @@ interface WebStatusPayload {
   };
 }
 
-function computeDuration(start?: string, end?: string): string | undefined {
-  if (!start || !end) {
-    return undefined;
-  }
-  const startDate = DateTime.fromISO(start);
-  const endDate = DateTime.fromISO(end);
-  if (!startDate.isValid || !endDate.isValid) {
-    return undefined;
-  }
-  const duration = endDate.diff(startDate, ['hours', 'minutes', 'seconds']);
-  return duration.toHuman({ style: 'short', maximumFractionDigits: 0 });
-}
-
 function buildStatusPayload(cronJob: CronJob<() => void, null>): WebStatusPayload {
   const nextDate = cronJob.nextDate?.();
   const nextRunHuman = nextDate?.setZone(env.TIMEZONE).toLocaleString(DateTime.DATETIME_FULL);
   const statusSnapshot = getSyncStatus();
+  const cronSchedule = getCronSchedule();
   return {
-    cronSchedule: env.CRON_SCHEDULE,
-    cronHuman: formatCronSchedule(env.CRON_SCHEDULE),
+    cronSchedule,
+    cronHuman: formatCronSchedule(cronSchedule),
     timezone: env.TIMEZONE,
     runOnStart: env.RUN_ON_START,
     nextRun: nextDate?.toISO(),
@@ -543,6 +824,60 @@ function buildStatusPayload(cronJob: CronJob<() => void, null>): WebStatusPayloa
       lastSyncDuration: computeDuration(statusSnapshot.lastSyncStart, statusSnapshot.lastSyncEnd),
     },
   };
+}
+
+const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
+
+async function readRequestBody(req: IncomingMessage): Promise<string | undefined> {
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+  if (chunks.length === 0) {
+    return undefined;
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function handleScheduleUpdate(
+  req: IncomingMessage,
+  res: ServerResponse,
+  cronJob: CronJob<() => void, null>,
+): Promise<void> {
+  try {
+    const raw = await readRequestBody(req);
+    const payload = raw ? JSON.parse(raw) : {};
+    const cronValue = typeof payload?.cronSchedule === 'string' ? payload.cronSchedule.trim() : '';
+    if (!cronValue) {
+      res.writeHead(400, JSON_HEADERS);
+      res.end(JSON.stringify({ message: 'cronSchedule is required' }));
+      return;
+    }
+    await setCronSchedule(cronValue);
+    const wasRunning = Boolean(cronJob.running);
+    if (wasRunning) {
+      cronJob.stop();
+    }
+    cronJob.setTime(new CronTime(cronValue));
+    if (wasRunning) {
+      cronJob.start();
+    }
+    const nextRun = cronJob.nextDate?.()?.toISO();
+    res.writeHead(200, { ...JSON_HEADERS, 'Cache-Control': 'no-store' });
+    res.end(
+      JSON.stringify({
+        message: 'Cron schedule updated',
+        cronSchedule: cronValue,
+        cronHuman: formatCronSchedule(cronValue),
+        nextRun,
+      }),
+    );
+  } catch (error) {
+    const statusCode = error instanceof Error && error.name === 'ZodError' ? 400 : 500;
+    logger.error({ err: error }, 'Failed to persist dashboard cron schedule');
+    res.writeHead(statusCode, JSON_HEADERS);
+    res.end(JSON.stringify({ message: error instanceof Error ? error.message : 'Unable to update cron schedule' }));
+  }
 }
 
 export function startWebUi(cronJob: CronJob<() => void, null>): Server | undefined {
@@ -566,6 +901,11 @@ export function startWebUi(cronJob: CronJob<() => void, null>): Server | undefin
         'Cache-Control': 'no-store',
       });
       res.end(JSON.stringify(payload));
+      return;
+    }
+
+    if (req.method === 'PUT' && url.pathname === '/api/schedule') {
+      void handleScheduleUpdate(req, res, cronJob);
       return;
     }
 

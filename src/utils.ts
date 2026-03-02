@@ -15,6 +15,7 @@ import cronstrue from 'cronstrue';
 import { env } from './env.js';
 import { logger } from './logger.js';
 import { markSyncComplete, markSyncStart } from './status.js';
+import { getCronSchedule } from './cron-config.js';
 
 const ACTUAL_DATA_DIR = './data';
 // Keep retries small to avoid long loops while still healing transient API/session issues.
@@ -289,7 +290,7 @@ async function runSyncCycle(): Promise<SyncCycleResult> {
   try {
     await createDataDirAndInitApi();
 
-    logger.info(`Scheduling sync to run ${formatCronSchedule(env.CRON_SCHEDULE)}...`);
+    logger.info(`Scheduling sync to run ${formatCronSchedule(getCronSchedule())}...`);
     // Main sync work for one cron tick.
     await downloadConfiguredBudgets();
     return { success: true };

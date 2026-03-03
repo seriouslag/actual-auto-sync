@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  actualDataDirSchema,
   budgetIdSchema,
   cronScheduleSchema,
   encryptionPasswordSchema,
@@ -185,6 +186,18 @@ describe('Environment Configuration', () => {
       it('should use default value when not provided', () => {
         const result = timezoneSchema.parse(undefined);
         expect(result).toBe('Etc/UTC');
+      });
+    });
+
+    describe('ACTUAL_DATA_DIR', () => {
+      it('should accept directory strings when provided', () => {
+        expect(() => actualDataDirSchema.parse('/data')).not.toThrow();
+        expect(() => actualDataDirSchema.parse('./legacy-data')).not.toThrow();
+      });
+
+      it('should remain optional for backward compatibility', () => {
+        const result = actualDataDirSchema.parse(undefined);
+        expect(result).toBeUndefined();
       });
     });
 

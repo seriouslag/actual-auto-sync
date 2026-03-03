@@ -1,3 +1,8 @@
+import {
+  READ_ONLY_REQUIRED_MESSAGE,
+  isContainerRootFilesystemReadOnly,
+  shouldEnforceReadOnlyRootFilesystem,
+} from './container-security.js';
 import { createCronJob } from './cron.js';
 import { logger } from './logger.js';
 
@@ -16,6 +21,23 @@ process.on('unhandledRejection', (reason, promise) => {
     'Unhandled Rejection at Promise; This may be okay to ignore.',
   );
 });
+
+try {
+  const { isContainer, isReadOnly } = await isContainerRootFilesystemReadOnly();
+  if (isContainer && !isReadOnly) {
+    const message = `${READ_ONLY_REQUIRED_MESSAGE} This will become a required default in the next major release.`;
+    if (shouldEnforceReadOnlyRootFilesystem()) {
+      logger.error(message);
+      throw new Error(message);
+    }
+    logger.warn(
+      `${message} Compatibility mode is active because ENFORCE_READ_ONLY is not enabled.`,
+    );
+  }
+} catch (error) {
+  logger.error({ err: error }, 'Container security validation failed.');
+  throw error;
+}
 
 const cronJob = createCronJob();
 cronJob.start();

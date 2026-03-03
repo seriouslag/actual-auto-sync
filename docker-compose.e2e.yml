@@ -12,7 +12,13 @@ services:
       - MOCK_SIMPLEFIN_USERNAME=test
       - MOCK_SIMPLEFIN_PASSWORD=test123
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8080/health']
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:8080/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
       interval: 5s
       timeout: 5s
       retries: 3
@@ -40,15 +46,26 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.e2e
+    user: '${E2E_UID:-1000}:${E2E_GID:-1000}'
     depends_on:
       actual-server:
         condition: service_healthy
       mock-simplefin:
         condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /data:size=256m,mode=0700,uid=${E2E_UID:-1000},gid=${E2E_GID:-1000}
+      - /tmp:size=128m,mode=1777,uid=${E2E_UID:-1000},gid=${E2E_GID:-1000}
+      - /app/node_modules/.vite-temp:size=64m,mode=0700,uid=${E2E_UID:-1000},gid=${E2E_GID:-1000}
     environment:
       - ACTUAL_SERVER_URL=http://actual-server:5006
       - ACTUAL_SERVER_PASSWORD=test-password-e2e
-      - ACTUAL_DATA_DIR=/app/e2e-data
+      - E2E_DATA_DIR=/data
+      - E2E_EXPECT_UID=${E2E_UID:-1000}
+      - E2E_EXPECT_GID=${E2E_GID:-1000}
+      - HOME=/tmp
+      - XDG_CACHE_HOME=/tmp/.cache
+      - COREPACK_HOME=/tmp/.cache/node/corepack
       # Mock SimpleFIN config (for mock server tests)
       - MOCK_SIMPLEFIN_PORT=8080
       - MOCK_SIMPLEFIN_URL=http://mock-simplefin:8080
@@ -64,9 +81,6 @@ services:
       - SIMPLEFIN_SETUP_TOKEN_2=${SIMPLEFIN_SETUP_TOKEN_2:-}
       - SIMPLEFIN_ACCESS_KEY_1=${SIMPLEFIN_ACCESS_KEY_1:-}
       - SIMPLEFIN_ACCESS_KEY_2=${SIMPLEFIN_ACCESS_KEY_2:-}
-    volumes:
-      - e2e-data:/app/e2e-data
 
 volumes:
   actual-data:
-  e2e-data:

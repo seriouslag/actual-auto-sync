@@ -1,4 +1,6 @@
-import { rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 /**
  * Bank Sync E2E Tests
@@ -13,7 +15,7 @@ import { rm } from 'node:fs/promises';
  * 4. Transaction Fixtures - Tests transaction data and filtering
  */
 import * as api from '@actual-app/api';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   E2E_CONFIG,
@@ -506,6 +508,67 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
  * Verifies repeated sync cycles do not duplicate imported transactions.
  */
 describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
+  const singleRunEnvKeys = [
+    'ACTUAL_BUDGET_SYNC_IDS',
+    'ENCRYPTION_PASSWORDS',
+    'ACTUAL_SERVER_URL',
+    'ACTUAL_SERVER_PASSWORD',
+    'CRON_SCHEDULE',
+    'LOG_LEVEL',
+    'RUN_ON_START',
+    'TIMEZONE',
+    'ACTUAL_BUDGET_SYNC_IDS_FILE',
+    'ENCRYPTION_PASSWORDS_FILE',
+    'ACTUAL_SERVER_PASSWORD_FILE',
+  ] as const;
+
+  type SingleRunEnvKey = (typeof singleRunEnvKeys)[number];
+  type SingleRunEnvSnapshot = Record<SingleRunEnvKey, string | undefined>;
+
+  const snapshotSingleRunEnv = (): SingleRunEnvSnapshot => {
+    const snapshot = {} as SingleRunEnvSnapshot;
+    for (const key of singleRunEnvKeys) {
+      snapshot[key] = process.env[key];
+    }
+    return snapshot;
+  };
+
+  const restoreSingleRunEnv = (snapshot: SingleRunEnvSnapshot) => {
+    for (const key of singleRunEnvKeys) {
+      const value = snapshot[key];
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  };
+
+  const assertImportedTransactionsForDownloadedBudgets = async (
+    syncIdToBudgetId: Record<string, string>,
+    budgets: { syncId: string; accountName: string }[],
+  ) => {
+    for (const budget of budgets) {
+      const downloadedBudgetId = syncIdToBudgetId[budget.syncId];
+      expect(downloadedBudgetId).toBeDefined();
+      if (!downloadedBudgetId) {
+        throw new Error(`Expected downloaded budget for sync ID ${budget.syncId}`);
+      }
+
+      await api.loadBudget(downloadedBudgetId);
+      const accounts = await api.getAccounts();
+      const linkedAccount = accounts.find((account) => account.name === budget.accountName);
+      expect(linkedAccount).toBeDefined();
+      if (!linkedAccount) {
+        throw new Error(`Expected account ${budget.accountName} in downloaded budget`);
+      }
+
+      const transactions = await api.getTransactions(linkedAccount.id, '2000-01-01', '2100-01-01');
+      const importedTransactions = transactions.filter((transaction) => transaction.imported_id);
+      expect(importedTransactions.length).toBeGreaterThan(0);
+    }
+  };
+
   let mockServerContext: Awaited<ReturnType<typeof startMockSimpleFinServer>> | undefined;
   let budget1: {
     syncId?: string;
@@ -683,26 +746,7 @@ describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
       return;
     }
 
-    const originalEnv = {
-      ACTUAL_BUDGET_SYNC_IDS: process.env.ACTUAL_BUDGET_SYNC_IDS,
-      ENCRYPTION_PASSWORDS: process.env.ENCRYPTION_PASSWORDS,
-      ACTUAL_SERVER_URL: process.env.ACTUAL_SERVER_URL,
-      ACTUAL_SERVER_PASSWORD: process.env.ACTUAL_SERVER_PASSWORD,
-      CRON_SCHEDULE: process.env.CRON_SCHEDULE,
-      LOG_LEVEL: process.env.LOG_LEVEL,
-      RUN_ON_START: process.env.RUN_ON_START,
-      TIMEZONE: process.env.TIMEZONE,
-    };
-
-    const restoreEnv = () => {
-      for (const [key, value] of Object.entries(originalEnv)) {
-        if (value === undefined) {
-          delete process.env[key];
-        } else {
-          process.env[key] = value;
-        }
-      }
-    };
+    const originalEnv = snapshotSingleRunEnv();
 
     try {
       await shutdownApi().catch(() => {});
@@ -717,6 +761,7 @@ describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
       process.env.RUN_ON_START = 'false';
       process.env.TIMEZONE = 'Etc/UTC';
 
+      vi.resetModules();
       const { sync: runAutoSync } = await import(`../../utils.js?issue64-single-run=${Date.now()}`);
       await runAutoSync();
 
@@ -732,45 +777,92 @@ describe('E2E: Multi-Budget duplicate regression (issue #64)', () => {
       expect(downloadedBudget1Id).toBeDefined();
       expect(downloadedBudget2Id).toBeDefined();
 
-      const assertImportedTransactions = async (budget: {
-        syncId: string;
-        accountName: string;
-      }) => {
-        const downloadedBudgetId = syncIdToBudgetId[budget.syncId];
-        expect(downloadedBudgetId).toBeDefined();
-        if (!downloadedBudgetId) {
-          throw new Error(`Expected downloaded budget for sync ID ${budget.syncId}`);
-        }
-
-        await api.loadBudget(downloadedBudgetId);
-        const accounts = await api.getAccounts();
-        const linkedAccount = accounts.find((account) => account.name === budget.accountName);
-        expect(linkedAccount).toBeDefined();
-        if (!linkedAccount) {
-          throw new Error(`Expected account ${budget.accountName} in downloaded budget`);
-        }
-
-        const transactions = await api.getTransactions(
-          linkedAccount.id,
-          '2000-01-01',
-          '2100-01-01',
-        );
-        const importedTransactions = transactions.filter((transaction) => transaction.imported_id);
-        expect(importedTransactions.length).toBeGreaterThan(0);
-      };
-
-      await assertImportedTransactions({
-        syncId: budget1.syncId!,
-        accountName: budget1.accountName,
-      });
-      await assertImportedTransactions({
-        syncId: budget2.syncId!,
-        accountName: budget2.accountName,
-      });
+      await assertImportedTransactionsForDownloadedBudgets(syncIdToBudgetId, [
+        {
+          syncId: budget1.syncId!,
+          accountName: budget1.accountName,
+        },
+        {
+          syncId: budget2.syncId!,
+          accountName: budget2.accountName,
+        },
+      ]);
     } finally {
       await shutdownApi().catch(() => {});
       await rm(AUTO_SYNC_DATA_DIR, { recursive: true, force: true }).catch(() => {});
-      restoreEnv();
+      restoreSingleRunEnv(originalEnv);
+    }
+  });
+
+  it('should sync both downloaded budgets in a single sync() run using _FILE env vars', async () => {
+    if (!budget1.syncId || !budget2.syncId) {
+      console.log('Skipping _FILE single-run assertion: missing sync IDs.');
+      return;
+    }
+
+    const originalEnv = snapshotSingleRunEnv();
+    let secretDir: string | undefined;
+
+    try {
+      await shutdownApi().catch(() => {});
+      await rm(AUTO_SYNC_DATA_DIR, { recursive: true, force: true }).catch(() => {});
+
+      secretDir = await mkdtemp(join(tmpdir(), 'actual-auto-sync-e2e-secrets-'));
+      const syncIdsPath = join(secretDir, 'actual_budget_sync_ids');
+      const serverPasswordPath = join(secretDir, 'actual_server_password');
+      const encryptionPasswordsPath = join(secretDir, 'encryption_passwords');
+
+      await writeFile(syncIdsPath, `${budget1.syncId},${budget2.syncId}\n`, 'utf8');
+      await writeFile(serverPasswordPath, `${E2E_CONFIG.serverPassword}\n`, 'utf8');
+      await writeFile(encryptionPasswordsPath, '\n', 'utf8');
+
+      process.env.ACTUAL_BUDGET_SYNC_IDS = 'incorrect-sync-id';
+      process.env.ENCRYPTION_PASSWORDS = 'incorrect-password';
+      process.env.ACTUAL_SERVER_PASSWORD = 'incorrect-password';
+      process.env.ACTUAL_BUDGET_SYNC_IDS_FILE = syncIdsPath;
+      process.env.ENCRYPTION_PASSWORDS_FILE = encryptionPasswordsPath;
+      process.env.ACTUAL_SERVER_PASSWORD_FILE = serverPasswordPath;
+      process.env.ACTUAL_SERVER_URL = E2E_CONFIG.serverUrl;
+      process.env.CRON_SCHEDULE = '0 1 * * *';
+      process.env.LOG_LEVEL = 'info';
+      process.env.RUN_ON_START = 'false';
+      process.env.TIMEZONE = 'Etc/UTC';
+
+      vi.resetModules();
+      const { sync: runAutoSync } = await import(
+        `../../utils.js?issue64-single-run-file=${Date.now()}`
+      );
+      await runAutoSync();
+
+      await api.init({
+        dataDir: AUTO_SYNC_DATA_DIR,
+        serverURL: E2E_CONFIG.serverUrl,
+        password: E2E_CONFIG.serverPassword,
+      });
+
+      const syncIdToBudgetId = await getSyncIdMaps(AUTO_SYNC_DATA_DIR);
+      const downloadedBudget1Id = syncIdToBudgetId[budget1.syncId];
+      const downloadedBudget2Id = syncIdToBudgetId[budget2.syncId];
+      expect(downloadedBudget1Id).toBeDefined();
+      expect(downloadedBudget2Id).toBeDefined();
+
+      await assertImportedTransactionsForDownloadedBudgets(syncIdToBudgetId, [
+        {
+          syncId: budget1.syncId!,
+          accountName: budget1.accountName,
+        },
+        {
+          syncId: budget2.syncId!,
+          accountName: budget2.accountName,
+        },
+      ]);
+    } finally {
+      await shutdownApi().catch(() => {});
+      await rm(AUTO_SYNC_DATA_DIR, { recursive: true, force: true }).catch(() => {});
+      if (secretDir) {
+        await rm(secretDir, { recursive: true, force: true }).catch(() => {});
+      }
+      restoreSingleRunEnv(originalEnv);
     }
   });
 });

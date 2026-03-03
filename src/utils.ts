@@ -1,4 +1,4 @@
-import type { Dirent } from 'node:fs';
+import { existsSync, type Dirent } from 'node:fs';
 import { mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -15,7 +15,15 @@ import cronstrue from 'cronstrue';
 import { env } from './env.js';
 import { logger } from './logger.js';
 
-const ACTUAL_DATA_DIR = './data';
+const DEFAULT_ACTUAL_DATA_DIR = existsSync('/.dockerenv') ? '/data' : './data';
+const ACTUAL_DATA_DIR = env.ACTUAL_DATA_DIR ?? DEFAULT_ACTUAL_DATA_DIR;
+
+if (env.ACTUAL_DATA_DIR) {
+  logger.warn(
+    { actualDataDir: env.ACTUAL_DATA_DIR },
+    'ACTUAL_DATA_DIR is deprecated and will be removed in the next major release. Use /data in containers and mount it with tmpfs or a volume.',
+  );
+}
 // Keep retries small to avoid long loops while still healing transient API/session issues.
 const MAX_BUDGET_SYNC_ATTEMPTS = 2;
 

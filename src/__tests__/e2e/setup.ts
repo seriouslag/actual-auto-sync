@@ -28,7 +28,7 @@ export type { BudgetMetadata } from './actual-api-helpers.js';
 export const E2E_CONFIG = {
   serverUrl: process.env.ACTUAL_SERVER_URL || 'http://localhost:5006',
   serverPassword: process.env.ACTUAL_SERVER_PASSWORD || 'test-password-e2e',
-  dataDir: process.env.ACTUAL_DATA_DIR || './e2e-data',
+  dataDir: process.env.E2E_DATA_DIR || './e2e-data',
 };
 
 /**

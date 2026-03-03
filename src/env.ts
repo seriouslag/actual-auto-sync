@@ -84,6 +84,33 @@ export const timezoneSchema = z
   })
   .default('Etc/UTC');
 
+export const webUiEnabledSchema = z
+  .union([z.string(), z.boolean()])
+  .optional()
+  .default(true)
+  .transform((value) => {
+    const loweredValue = typeof value === 'string' ? value.trim().toLowerCase() : value;
+    switch (loweredValue) {
+      case true:
+      case 'on':
+      case 'yes':
+      case '1':
+      case 'true':
+        return true;
+      default:
+        return false;
+    }
+  });
+
+export const webUiHostSchema = z.string().default('0.0.0.0');
+
+export const webUiPortSchema = z.coerce
+  .number()
+  .int()
+  .min(1)
+  .max(65535)
+  .default(4000);
+
 /**
  * Server URL
  */
@@ -130,6 +157,9 @@ export const env = createEnv({
     LOG_LEVEL: await getConfiguration('LOG_LEVEL'),
     RUN_ON_START: await getConfiguration('RUN_ON_START'),
     TIMEZONE: await getConfiguration('TIMEZONE'),
+    WEB_UI_ENABLED: await getConfiguration('WEB_UI_ENABLED'),
+    WEB_UI_HOST: await getConfiguration('WEB_UI_HOST'),
+    WEB_UI_PORT: await getConfiguration('WEB_UI_PORT'),
   },
 
   server: {
@@ -141,5 +171,8 @@ export const env = createEnv({
     LOG_LEVEL: logLevelSchema,
     RUN_ON_START: runOnStartSchema,
     TIMEZONE: timezoneSchema,
+    WEB_UI_ENABLED: webUiEnabledSchema,
+    WEB_UI_HOST: webUiHostSchema,
+    WEB_UI_PORT: webUiPortSchema,
   },
 });

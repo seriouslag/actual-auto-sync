@@ -20,7 +20,7 @@ The service requires the following environment variables:
 - `ACTUAL_SERVER_URL`: URL of your Actual Budget server
 - `ACTUAL_SERVER_PASSWORD`: Password for your Actual Budget server
 - `CRON_SCHEDULE`: Cron expression for scheduling syncs (default: `0 1 * * *` - daily at 1am)
-- `LOG_LEVEL`: Logging level (default: `info`)
+- `LOG_LEVEL`: Logging level (default: `info`, chose among the values `debug`, `info`, `warn`, `error`)
 - `ACTUAL_BUDGET_SYNC_IDS`: Comma-separated list of budget IDs to sync (e.g. "1cf9fbf9-97b7-4647-8128-8afec1b1fbe2,030d7094-aae8-4d70-aeee-9e29d30d9b88")
 - `ENCRYPTION_PASSWORDS`: Comma-separated list of encryption passwords for each account in the ACTUAL_BUDGET_SYNC_IDS list (e.g. "password1,password2") or leave empty if you don't encrypt your data, the position of the password in the list is the position of the account in the ACTUAL_BUDGET_SYNC_IDS list; to skip an account add a comma to the list in that position
 - `TIMEZONE`: Timezone for the cron job (default: `Etc/UTC`)

@@ -1,7 +1,7 @@
 import { pino } from 'pino';
 
-import { env } from './env.js';
+export const logger = pino({});
 
-export const logger = pino({
-  level: env.LOG_LEVEL,
-});
+export function isVerbose(logLevel: string): boolean {
+  return ['debug', 'info'].includes(logLevel);
+}

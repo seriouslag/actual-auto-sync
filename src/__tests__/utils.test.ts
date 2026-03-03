@@ -60,19 +60,24 @@ vi.mock('../env.js', () => ({
   },
 }));
 
-vi.mock('../logger.js', () => ({
-  logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
+vi.mock('../logger.js', async (importOriginal) => {
+  const originalModule = (await importOriginal()) as { isVerbose: (logLevel: string) => boolean };
+  return {
+    logger: {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    },
+    isVerbose: vi.fn(originalModule.isVerbose),
+  };
+});
 
 describe('utils.ts functions', () => {
   const mutableEnv = env as unknown as {
     ACTUAL_BUDGET_SYNC_IDS: string[];
     ENCRYPTION_PASSWORDS: string[];
+    LOG_LEVEL: typeof env.LOG_LEVEL;
   };
   let cronstrueMock: { toString: ReturnType<typeof vi.fn> };
 
@@ -85,6 +90,32 @@ describe('utils.ts functions', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe('verbosity', () => {
+    it('verbose', async () => {
+      mutableEnv.LOG_LEVEL = 'info';
+      await sync();
+
+      expect(init).toHaveBeenCalledWith({
+        dataDir: './data',
+        serverURL: 'http://localhost:5006',
+        password: 'test-password',
+        verbose: true,
+      });
+    });
+
+    it('quiet', async () => {
+      mutableEnv.LOG_LEVEL = 'warn';
+      await sync();
+
+      expect(init).toHaveBeenCalledWith({
+        dataDir: './data',
+        serverURL: 'http://localhost:5006',
+        password: 'test-password',
+        verbose: false,
+      });
+    });
   });
 
   describe('formatCronSchedule', () => {
@@ -354,6 +385,7 @@ describe('utils.ts functions', () => {
         dataDir: './data',
         serverURL: 'http://localhost:5006',
         password: 'test-password',
+        verbose: false,
       });
       expect(cronstrueMock.toString).toHaveBeenCalledWith('0 0 * * *');
       expect(shutdown).toHaveBeenCalled();

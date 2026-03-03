@@ -5,6 +5,7 @@ import { DateTime } from 'luxon';
 import { env } from './env.js';
 import { logger } from './logger.js';
 import { sync } from './utils.js';
+import { getCronSchedule } from './cron-config.js';
 
 export async function onTick(onCompleteCallback: () => Promise<void> | void) {
   try {
@@ -28,7 +29,7 @@ export function onComplete(cronJob: CronJob<() => void, null>): void {
 
 export function createCronJob(): CronJob<() => void, null> {
   const cronJob: CronJob<() => void, null> = CronJob.from<() => void, null>({
-    cronTime: env.CRON_SCHEDULE,
+    cronTime: getCronSchedule(),
     onComplete: () => onComplete(cronJob),
     onTick,
     runOnInit: env.RUN_ON_START,

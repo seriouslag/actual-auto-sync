@@ -44,6 +44,10 @@ describe('cron.ts functions', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
 
+    const cronConfigModule = await import('../cron-config.js');
+    cronConfigModule.resetCronSchedule();
+    await cronConfigModule.initializeCronSchedule('0 0 * * *');
+
     const apiModule = await import('@actual-app/api');
     const loggerModule = await import('../logger.js');
     const utilsModule = await import('../utils.js');

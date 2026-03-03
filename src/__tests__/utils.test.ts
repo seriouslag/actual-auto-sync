@@ -41,6 +41,8 @@ vi.mock('@actual-app/api', () => ({
 // Import mocked functions
 const { init, shutdown, downloadBudget } = await import('@actual-app/api');
 const { mkdir, rm } = await import('node:fs/promises');
+const cronConfigModule = await import('../cron-config.js');
+const { initializeCronSchedule, resetCronSchedule } = cronConfigModule;
 
 vi.mock('cronstrue', () => ({
   default: {
@@ -76,8 +78,10 @@ describe('utils.ts functions', () => {
   };
   let cronstrueMock: { toString: ReturnType<typeof vi.fn> };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    resetCronSchedule();
+    await initializeCronSchedule('0 0 * * *');
     cronstrueMock = cronstrue as unknown as {
       toString: ReturnType<typeof vi.fn>;
     };

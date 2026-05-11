@@ -32,10 +32,16 @@ interface AccountBalanceSyncInput {
   readFailed: boolean;
 }
 
+const getInternal = () =>
+  internal ??
+  (() => {
+    throw new Error('Actual API not initialized');
+  })();
+
 async function getAccountsForBalanceSync(): Promise<AccountBalanceSyncInput> {
   try {
     return {
-      accounts: (await internal.db.getAccounts()) as AccountBalanceRow[],
+      accounts: (await getInternal().db.getAccounts()) as AccountBalanceRow[],
       readFailed: false,
     };
   } catch (error) {
@@ -49,7 +55,7 @@ async function getAccountsForBalanceSync(): Promise<AccountBalanceSyncInput> {
 
 async function syncAccountBalanceToCRDT(account: AccountBalanceRow): Promise<boolean> {
   try {
-    await internal.db.update('accounts', {
+    await getInternal().db.update('accounts', {
       id: account.id,
       balance_current: account.balance_current,
     });
@@ -96,17 +102,12 @@ async function syncBankAccounts() {
   }
 }
 
-async function syncBudgetToServer() {
+/** Runs bank sync, then pushes synced balance state to the server for the loaded budget. */
+export async function syncAllAccounts() {
+  await syncBankAccounts();
   logger.info('Syncing budget to server...');
   await syncBudget();
   logger.info('Budget synced to server successfully.');
-}
-
-/** Runs bank sync, then pushes synced balance state to the server for the loaded budget. */
-export async function syncAllAccounts() {
-  // Runs against the currently loaded budget in the Actual API session.
-  await syncBankAccounts();
-  await syncBudgetToServer();
 }
 
 async function createDataDirAndInitApi() {

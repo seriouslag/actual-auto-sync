@@ -471,7 +471,7 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
     await runAutoSyncAllAccounts();
 
     // Verify account has a synced balance value
-    const accountRows = (await api.internal.db.all(
+    const accountRows = (await api.internal!.db.all(
       'SELECT id, balance_current FROM accounts WHERE id = ?',
       [seededAccountId],
     )) as { id: string; balance_current: number | null }[];
@@ -480,7 +480,7 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
     expect(accountRows[0]?.balance_current).not.toBeNull();
 
     // Verify balance_current was emitted as a CRDT message (issue #60 regression guard)
-    const balanceMessages = (await api.internal.db.all(
+    const balanceMessages = (await api.internal!.db.all(
       "SELECT value FROM messages_crdt WHERE dataset = 'accounts' AND row = ? AND column = 'balance_current' ORDER BY timestamp",
       [seededAccountId],
     )) as { value: string | number | null }[];
@@ -490,7 +490,7 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
     const latestMessageValue = decodeCrdtNumber(balanceMessages.at(-1)?.value);
     expect(latestMessageValue).toBe(accountRows[0]?.balance_current);
 
-    const expectedBalance = api.internal.amountToInteger(mockAccount.balance);
+    const expectedBalance = api.internal!.amountToInteger(parsedBalance);
     expect(accountRows[0]?.balance_current).toBe(expectedBalance);
   });
 });

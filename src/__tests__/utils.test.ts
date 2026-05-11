@@ -107,11 +107,11 @@ describe('utils.ts functions', () => {
 
   describe('syncAllAccounts', () => {
     beforeEach(() => {
-      vi.mocked(internal.db.getAccounts).mockResolvedValue([
+      vi.mocked(internal!.db.getAccounts).mockResolvedValue([
         { id: 'acc-1', balance_current: 12_345 },
         { id: 'acc-2', balance_current: null },
-      ]);
-      vi.mocked(internal.db.update).mockResolvedValue(undefined);
+      ] as any);
+      vi.mocked(internal!.db.update).mockResolvedValue(undefined);
     });
 
     it('should successfully sync all accounts and sync budget to server', async () => {
@@ -124,8 +124,8 @@ describe('utils.ts functions', () => {
       expect(runBankSync).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith('All accounts synced.');
       expect(logger.info).toHaveBeenCalledWith('Syncing account balances through CRDT...');
-      expect(internal.db.getAccounts).toHaveBeenCalled();
-      expect(internal.db.update).toHaveBeenCalledWith('accounts', {
+      expect(internal!.db.getAccounts).toHaveBeenCalled();
+      expect(internal!.db.update).toHaveBeenCalledWith('accounts', {
         id: 'acc-1',
         balance_current: 12_345,
       });
@@ -157,7 +157,7 @@ describe('utils.ts functions', () => {
     it('should continue syncing budget when account balance CRDT sync has errors', async () => {
       const error = new Error('DB read failed');
       vi.mocked(runBankSync).mockResolvedValue(undefined);
-      vi.mocked(internal.db.getAccounts).mockRejectedValue(error);
+      vi.mocked(internal!.db.getAccounts).mockRejectedValue(error);
       vi.mocked(syncBudget).mockResolvedValue(undefined);
 
       await syncAllAccounts();
@@ -176,22 +176,22 @@ describe('utils.ts functions', () => {
 
   describe('syncAccountBalancesToCRDT', () => {
     it('should sync non-null account balances through CRDT', async () => {
-      vi.mocked(internal.db.getAccounts).mockResolvedValue([
+      vi.mocked(internal!.db.getAccounts).mockResolvedValue([
         { id: 'acc-1', balance_current: 1000 },
         { id: 'acc-2', balance_current: null },
         { id: 'acc-3', balance_current: -500 },
-      ]);
-      vi.mocked(internal.db.update).mockResolvedValue(undefined);
+      ] as any);
+      vi.mocked(internal!.db.update).mockResolvedValue(undefined);
 
       const result = await syncAccountBalancesToCRDT();
 
       expect(result).toBe(true);
-      expect(internal.db.update).toHaveBeenCalledTimes(2);
-      expect(internal.db.update).toHaveBeenCalledWith('accounts', {
+      expect(internal!.db.update).toHaveBeenCalledTimes(2);
+      expect(internal!.db.update).toHaveBeenCalledWith('accounts', {
         id: 'acc-1',
         balance_current: 1000,
       });
-      expect(internal.db.update).toHaveBeenCalledWith('accounts', {
+      expect(internal!.db.update).toHaveBeenCalledWith('accounts', {
         id: 'acc-3',
         balance_current: -500,
       });
@@ -199,7 +199,7 @@ describe('utils.ts functions', () => {
 
     it('should log errors from getAccounts and continue', async () => {
       const error = new Error('DB read failed');
-      vi.mocked(internal.db.getAccounts).mockRejectedValue(error);
+      vi.mocked(internal!.db.getAccounts).mockRejectedValue(error);
 
       const result = await syncAccountBalancesToCRDT();
 
@@ -212,11 +212,11 @@ describe('utils.ts functions', () => {
 
     it('should log errors from update and continue with remaining accounts', async () => {
       const error = new Error('DB update failed');
-      vi.mocked(internal.db.getAccounts).mockResolvedValue([
+      vi.mocked(internal!.db.getAccounts).mockResolvedValue([
         { id: 'acc-1', balance_current: 100 },
         { id: 'acc-2', balance_current: 200 },
-      ]);
-      vi.mocked(internal.db.update).mockRejectedValueOnce(error).mockResolvedValue(undefined);
+      ] as any);
+      vi.mocked(internal!.db.update).mockRejectedValueOnce(error).mockResolvedValue(undefined);
 
       const result = await syncAccountBalancesToCRDT();
 
@@ -225,12 +225,12 @@ describe('utils.ts functions', () => {
         { err: error, accountId: 'acc-1' },
         'Error syncing account balance through CRDT for account',
       );
-      expect(internal.db.update).toHaveBeenCalledTimes(2);
-      expect(internal.db.update).toHaveBeenNthCalledWith(1, 'accounts', {
+      expect(internal!.db.update).toHaveBeenCalledTimes(2);
+      expect(internal!.db.update).toHaveBeenNthCalledWith(1, 'accounts', {
         id: 'acc-1',
         balance_current: 100,
       });
-      expect(internal.db.update).toHaveBeenNthCalledWith(2, 'accounts', {
+      expect(internal!.db.update).toHaveBeenNthCalledWith(2, 'accounts', {
         id: 'acc-2',
         balance_current: 200,
       });
@@ -327,8 +327,8 @@ describe('utils.ts functions', () => {
       vi.mocked(mkdir).mockResolvedValue(undefined);
       vi.mocked(runBankSync).mockResolvedValue(undefined);
       vi.mocked(syncBudget).mockResolvedValue(undefined);
-      vi.mocked(internal.db.getAccounts).mockResolvedValue([]);
-      vi.mocked(internal.db.update).mockResolvedValue(undefined);
+      vi.mocked(internal!.db.getAccounts).mockResolvedValue([]);
+      vi.mocked(internal!.db.update).mockResolvedValue(undefined);
 
       // Ensure cronstrue mock returns a valid string
       cronstrueMock.toString.mockReturnValue('every day at midnight');

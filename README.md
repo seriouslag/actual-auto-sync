@@ -25,6 +25,7 @@ The service requires the following environment variables:
 - `ENCRYPTION_PASSWORDS`: Comma-separated list of encryption passwords for each account in the ACTUAL_BUDGET_SYNC_IDS list (e.g. "password1,password2") or leave empty if you don't encrypt your data, the position of the password in the list is the position of the account in the ACTUAL_BUDGET_SYNC_IDS list; to skip an account add a comma to the list in that position
 - `TIMEZONE`: Timezone for the cron job (default: `Etc/UTC`)
 - `RUN_ON_START`: Whether to run the sync on startup (default: `false`) - Please note that when setting this to `true`, you may get a notice email from SimpleFin (if you use that service), as they expect only a bank sync once a day.
+- `SKIP_FAILED_ACCOUNTS`: Whether to sync each account individually and skip (rather than abort on) accounts that fail (default: `false`). When `false`, all accounts sync in a single request and any one failure aborts the budget's sync. When `true`, a failing account is logged and skipped so the rest still sync. Note: per-account syncing can result in more requests to your bank aggregator (e.g. SimpleFIN), which may matter for rate limits.
 
 You can find your budget sync IDs in the Actual Budget app > _Selected Budget_ > Settings > Advanced Settings > Sync ID.
 

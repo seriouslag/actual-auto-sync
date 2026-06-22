@@ -1,6 +1,6 @@
 import { readFile, readdir } from 'node:fs/promises';
 
-import { runBankSync, sync as syncBudget } from '@actual-app/api';
+import { getAccounts, runBankSync, sync as syncBudget } from '@actual-app/api';
 import cronstrue from 'cronstrue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,6 +27,7 @@ vi.mock('@actual-app/api', () => ({
   init: vi.fn(),
   shutdown: vi.fn(),
   runBankSync: vi.fn(),
+  getAccounts: vi.fn(),
   downloadBudget: vi.fn(),
   loadBudget: vi.fn(),
   sync: vi.fn(),
@@ -61,6 +62,7 @@ vi.mock('../env.js', () => ({
     TIMEZONE: 'Etc/UTC',
     RUN_ON_START: false,
     LOG_LEVEL: 'info',
+    SKIP_FAILED_ACCOUNTS: false,
   },
 }));
 
@@ -83,11 +85,15 @@ describe('utils.ts functions', () => {
     ACTUAL_BUDGET_SYNC_IDS: string[];
     ENCRYPTION_PASSWORDS: string[];
     LOG_LEVEL: string;
+    SKIP_FAILED_ACCOUNTS: boolean;
   };
   let cronstrueMock: { toString: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset env knobs that individual tests toggle so ordering can't leak state.
+    mutableEnv.LOG_LEVEL = 'info';
+    mutableEnv.SKIP_FAILED_ACCOUNTS = false;
     cronstrueMock = cronstrue as unknown as {
       toString: ReturnType<typeof vi.fn>;
     };
@@ -117,6 +123,7 @@ describe('utils.ts functions', () => {
 
   describe('syncAllAccounts', () => {
     beforeEach(() => {
+      mutableEnv.SKIP_FAILED_ACCOUNTS = false;
       vi.mocked(mockDb.getAccounts).mockResolvedValue([
         { id: 'acc-1', balance_current: 12_345 },
         { id: 'acc-2', balance_current: null },
@@ -131,6 +138,9 @@ describe('utils.ts functions', () => {
       await syncAllAccounts(fakeApi);
 
       expect(logger.info).toHaveBeenCalledWith('Syncing all accounts...');
+      // Default mode: a single all-accounts sync, no per-account enumeration.
+      expect(runBankSync).toHaveBeenCalledWith();
+      expect(getAccounts).not.toHaveBeenCalled();
       expect(runBankSync).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith('All accounts synced.');
       expect(logger.info).toHaveBeenCalledWith('Syncing account balances through CRDT...');
@@ -181,6 +191,64 @@ describe('utils.ts functions', () => {
       );
       expect(syncBudget).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith('Budget synced to server successfully.');
+    });
+
+    describe('when SKIP_FAILED_ACCOUNTS is enabled', () => {
+      beforeEach(() => {
+        mutableEnv.SKIP_FAILED_ACCOUNTS = true;
+        vi.mocked(syncBudget).mockResolvedValue(undefined);
+        vi.mocked(getAccounts).mockResolvedValue([
+          { id: 'acc-1', name: 'Checking' },
+          { id: 'acc-2', name: 'Savings' },
+          { id: 'acc-3', name: 'Closed', closed: true },
+        ]);
+      });
+
+      it('syncs each non-closed account individually', async () => {
+        vi.mocked(runBankSync).mockResolvedValue(undefined);
+
+        await syncAllAccounts(fakeApi);
+
+        expect(runBankSync).toHaveBeenCalledTimes(2);
+        expect(runBankSync).toHaveBeenCalledWith({ accountId: 'acc-1' });
+        expect(runBankSync).toHaveBeenCalledWith({ accountId: 'acc-2' });
+        expect(runBankSync).not.toHaveBeenCalledWith({ accountId: 'acc-3' });
+        expect(syncBudget).toHaveBeenCalled();
+      });
+
+      it('skips a failing account, logs it, and still syncs the budget', async () => {
+        const error = new Error('internal error');
+        vi.mocked(runBankSync)
+          .mockRejectedValueOnce(error) // acc-1 fails
+          .mockResolvedValue(undefined); // acc-2 succeeds
+
+        await syncAllAccounts(fakeApi);
+
+        expect(runBankSync).toHaveBeenCalledTimes(2);
+        expect(logger.error).toHaveBeenCalledWith(
+          { err: error, accountId: 'acc-1', accountName: 'Checking' },
+          'Bank sync failed for account "Checking"; skipping.',
+        );
+        expect(logger.warn).toHaveBeenCalledWith(
+          { failedAccounts: ['Checking'] },
+          'Bank sync completed with 1 failed account(s): Checking.',
+        );
+        // Budget still pushed despite the failed account.
+        expect(syncBudget).toHaveBeenCalled();
+      });
+
+      it('labels a failing unnamed account by its id', async () => {
+        const error = new Error('boom');
+        vi.mocked(getAccounts).mockResolvedValue([{ id: 'acc-x', name: '' }]);
+        vi.mocked(runBankSync).mockRejectedValue(error);
+
+        await syncAllAccounts(fakeApi);
+
+        expect(logger.error).toHaveBeenCalledWith(
+          { err: error, accountId: 'acc-x', accountName: '' },
+          'Bank sync failed for account "acc-x"; skipping.',
+        );
+      });
     });
   });
 

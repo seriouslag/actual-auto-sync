@@ -7,6 +7,7 @@ import {
   logLevelSchema,
   runOnStartSchema,
   serverPasswordSchema,
+  skipFailedAccountsSchema,
   serverUrlSchema,
   timezoneSchema,
 } from '../env.js';
@@ -223,6 +224,31 @@ describe('Environment Configuration', () => {
       it('should use default value when not provided', () => {
         const result = runOnStartSchema.parse(undefined);
         expect(result).toBe(false);
+      });
+    });
+
+    describe('SKIP_FAILED_ACCOUNTS', () => {
+      it('should coerce common truthy/falsy representations to boolean', () => {
+        const testCases = [
+          { input: true, expected: true },
+          { input: 'true', expected: true },
+          { input: '1', expected: true },
+          { input: 'yes', expected: true },
+          { input: 'on', expected: true },
+          { input: false, expected: false },
+          { input: 'false', expected: false },
+          { input: '0', expected: false },
+          { input: '', expected: false },
+          { input: 'nonsense', expected: false },
+        ];
+
+        for (const { input, expected } of testCases) {
+          expect(skipFailedAccountsSchema.parse(input)).toBe(expected);
+        }
+      });
+
+      it('should default to false when not provided', () => {
+        expect(skipFailedAccountsSchema.parse(undefined)).toBe(false);
       });
     });
   });

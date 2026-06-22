@@ -2,7 +2,14 @@ import type { Dirent } from 'node:fs';
 import { mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { downloadBudget, init, runBankSync, shutdown, sync as syncBudget } from '@actual-app/api';
+import {
+  downloadBudget,
+  getAccounts,
+  init,
+  runBankSync,
+  shutdown,
+  sync as syncBudget,
+} from '@actual-app/api';
 import cronstrue from 'cronstrue';
 
 import { env } from './env.js';
@@ -104,9 +111,43 @@ export async function syncAccountBalancesToCRDT(api: BalanceSyncApi) {
   return !hasSyncErrors;
 }
 
+/**
+ * Runs bank sync per account, skipping (and logging) any that fail so one bad
+ * account does not abort the rest. Returns the names/ids of accounts that failed.
+ */
+async function runBankSyncSkippingFailures(): Promise<string[]> {
+  const accounts = (await getAccounts()).filter((account) => !account.closed);
+  const failedAccounts: string[] = [];
+
+  for (const account of accounts) {
+    const label = account.name || account.id;
+    try {
+      await runBankSync({ accountId: account.id });
+    } catch (error) {
+      failedAccounts.push(label);
+      logger.error(
+        { err: error, accountId: account.id, accountName: account.name },
+        `Bank sync failed for account "${label}"; skipping.`,
+      );
+    }
+  }
+
+  return failedAccounts;
+}
+
 async function syncBankAccounts(api: BalanceSyncApi) {
   logger.info('Syncing all accounts...');
-  await runBankSync();
+  if (env.SKIP_FAILED_ACCOUNTS) {
+    const failedAccounts = await runBankSyncSkippingFailures();
+    if (failedAccounts.length > 0) {
+      logger.warn(
+        { failedAccounts },
+        `Bank sync completed with ${failedAccounts.length} failed account(s): ${failedAccounts.join(', ')}.`,
+      );
+    }
+  } else {
+    await runBankSync();
+  }
   logger.info('All accounts synced.');
   logger.info('Syncing account balances through CRDT...');
   const syncedBalances = await syncAccountBalancesToCRDT(api);

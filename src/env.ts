@@ -40,35 +40,50 @@ export const encryptionPasswordSchema = z
 export const cronScheduleSchema = z.string().trim().min(9).default('0 1 * * *');
 
 /**
+ * Builds a schema that parses common truthy/falsy string representations (and
+ * real booleans) into a boolean, defaulting to `false` for unknown values.
+ */
+function flexibleBooleanSchema() {
+  return z
+    .union([z.string(), z.boolean()])
+    .optional()
+    .default(false)
+    .transform((value) => {
+      const loweredValue = typeof value === 'string' ? value.trim().toLowerCase() : value;
+      switch (loweredValue) {
+        case true:
+        case 'on':
+        case 'yes':
+        case '1':
+        case 'true': {
+          return true;
+        }
+        case false:
+        case 'off':
+        case 'no':
+        case '0':
+        case 'false': {
+          return false;
+        }
+        default: {
+          return false;
+        }
+      }
+    });
+}
+
+/**
  * Default to false
  * @default false
  */
-export const runOnStartSchema = z
-  .union([z.string(), z.boolean()])
-  .optional()
-  .default(false)
-  .transform((value) => {
-    const loweredValue = typeof value === 'string' ? value.trim().toLowerCase() : value;
-    switch (loweredValue) {
-      case true:
-      case 'on':
-      case 'yes':
-      case '1':
-      case 'true': {
-        return true;
-      }
-      case false:
-      case 'off':
-      case 'no':
-      case '0':
-      case 'false': {
-        return false;
-      }
-      default: {
-        return false;
-      }
-    }
-  });
+export const runOnStartSchema = flexibleBooleanSchema();
+
+/**
+ * When true, bank sync runs per-account and skips accounts that fail instead of
+ * aborting the whole budget. Default false (single all-accounts sync).
+ * @default false
+ */
+export const skipFailedAccountsSchema = flexibleBooleanSchema();
 
 /**
  * Default to info
@@ -132,6 +147,7 @@ export const env = createEnv({
     ENCRYPTION_PASSWORDS: await getConfiguration('ENCRYPTION_PASSWORDS'),
     LOG_LEVEL: await getConfiguration('LOG_LEVEL'),
     RUN_ON_START: await getConfiguration('RUN_ON_START'),
+    SKIP_FAILED_ACCOUNTS: await getConfiguration('SKIP_FAILED_ACCOUNTS'),
     TIMEZONE: await getConfiguration('TIMEZONE'),
   },
 
@@ -143,6 +159,7 @@ export const env = createEnv({
     ENCRYPTION_PASSWORDS: encryptionPasswordSchema,
     LOG_LEVEL: logLevelSchema,
     RUN_ON_START: runOnStartSchema,
+    SKIP_FAILED_ACCOUNTS: skipFailedAccountsSchema,
     TIMEZONE: timezoneSchema,
   },
 });

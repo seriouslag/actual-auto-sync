@@ -24,7 +24,8 @@ vi.mock('pino', () => ({
 }));
 
 vi.mock('@t3-oss/env-core', () => ({
-  createEnv: vi.fn(),
+  // env.ts reads env.LOG_LEVEL after createEnv() to set the logger level.
+  createEnv: vi.fn(() => ({ LOG_LEVEL: 'info' })),
 }));
 
 describe('Environment Configuration', () => {

@@ -13,11 +13,12 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR /app
 
-# Copy package files first for better layer caching
-COPY package.json pnpm-lock.yaml ./
+# Copy package files first for better layer caching.
+# pnpm-workspace.yaml carries pnpm 11 settings (allowBuilds, minimumReleaseAge)
+# and must be present before install.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Enable pnpm and install dependencies
-# The pnpm.onlyBuiltDependencies config in package.json allows better-sqlite3 build scripts
+# Enable pnpm (corepack pins the version from package.json "packageManager").
 # Use --ignore-scripts to skip lefthook install (requires git which isn't needed in E2E container)
 # Then rebuild better-sqlite3 native module which requires compilation
 RUN corepack enable

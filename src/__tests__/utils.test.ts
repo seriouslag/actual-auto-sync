@@ -60,22 +60,29 @@ vi.mock('../env.js', () => ({
     ENCRYPTION_PASSWORDS: ['pass1', 'pass2'],
     TIMEZONE: 'Etc/UTC',
     RUN_ON_START: false,
+    LOG_LEVEL: 'info',
   },
 }));
 
-vi.mock('../logger.js', () => ({
-  logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
+vi.mock('../logger.js', async (importOriginal) => {
+  // Keep the real isVerbose so the verbose flag passed to init() is exercised.
+  const actual = await importOriginal<typeof import('../logger.js')>();
+  return {
+    logger: {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    },
+    isVerbose: actual.isVerbose,
+  };
+});
 
 describe('utils.ts functions', () => {
   const mutableEnv = env as unknown as {
     ACTUAL_BUDGET_SYNC_IDS: string[];
     ENCRYPTION_PASSWORDS: string[];
+    LOG_LEVEL: string;
   };
   let cronstrueMock: { toString: ReturnType<typeof vi.fn> };
 
@@ -339,6 +346,7 @@ describe('utils.ts functions', () => {
       // Mock getSyncIdMaps to return a mapping that matches the env.ACTUAL_BUDGET_SYNC_IDS
       mutableEnv.ACTUAL_BUDGET_SYNC_IDS = ['budget1', 'budget2'];
       mutableEnv.ENCRYPTION_PASSWORDS = ['pass1', 'pass2'];
+      mutableEnv.LOG_LEVEL = 'info';
       vi.mocked(readdir).mockResolvedValue([
         { name: 'dir1', isDirectory: () => true },
         { name: 'dir2', isDirectory: () => true },
@@ -357,9 +365,26 @@ describe('utils.ts functions', () => {
         dataDir: './data',
         serverURL: 'http://localhost:5006',
         password: 'test-password',
+        verbose: true,
       });
       expect(cronstrueMock.toString).toHaveBeenCalledWith('0 0 * * *');
       expect(shutdown).toHaveBeenCalled();
+    });
+
+    it('initializes the API verbosely when LOG_LEVEL is verbose', async () => {
+      mutableEnv.LOG_LEVEL = 'info';
+
+      await sync();
+
+      expect(init).toHaveBeenCalledWith(expect.objectContaining({ verbose: true }));
+    });
+
+    it('initializes the API quietly when LOG_LEVEL is not verbose', async () => {
+      mutableEnv.LOG_LEVEL = 'warn';
+
+      await sync();
+
+      expect(init).toHaveBeenCalledWith(expect.objectContaining({ verbose: false }));
     });
 
     it('should download budgets without encryption password when password is missing', async () => {

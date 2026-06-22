@@ -107,9 +107,12 @@ export async function waitForServer(maxAttempts = 30, delayMs = 1000): Promise<v
 }
 
 /**
- * Initialize the Actual API connection
+ * Initialize the Actual API connection.
+ *
+ * Returns the handle from `init()` (the `internal` export is deprecated) so
+ * callers can reach `db`/`amountToInteger` without the deprecated global.
  */
-export async function initApi(): Promise<void> {
+export async function initApi(): Promise<Awaited<ReturnType<typeof api.init>>> {
   // @actual-app/api export/upload paths read this env var directly.
   // Keep it aligned with the dataDir we initialize with so E2E runs are consistent
   // both inside and outside docker-compose.
@@ -117,7 +120,7 @@ export async function initApi(): Promise<void> {
 
   await mkdir(E2E_CONFIG.dataDir, { recursive: true });
 
-  await api.init({
+  return api.init({
     dataDir: E2E_CONFIG.dataDir,
     serverURL: E2E_CONFIG.serverUrl,
     password: E2E_CONFIG.serverPassword,

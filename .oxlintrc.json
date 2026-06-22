@@ -126,9 +126,7 @@
     "unicorn/no-useless-length-check": "warn",
     "unicorn/no-useless-spread": "warn",
     "unicorn/prefer-set-size": "warn",
-    "unicorn/prefer-string-starts-ends-with": "warn",
-    "experimentalSortImports": "warn",
-    "experimentalSortPackageJson": "warn"
+    "unicorn/prefer-string-starts-ends-with": "warn"
   },
   "settings": {
     "jsx-a11y": {

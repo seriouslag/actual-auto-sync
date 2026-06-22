@@ -15,7 +15,9 @@ import cronstrue from 'cronstrue';
 import { env } from './env.js';
 import { isVerbose, logger } from './logger.js';
 
-const ACTUAL_DATA_DIR = './data';
+// Configurable so the writable data dir can live on a mounted/tmpfs path,
+// allowing the container to run with a read-only root filesystem.
+const ACTUAL_DATA_DIR = env.ACTUAL_DATA_DIR;
 // Keep retries small to avoid long loops while still healing transient API/session issues.
 const MAX_BUDGET_SYNC_ATTEMPTS = 2;
 

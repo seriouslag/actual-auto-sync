@@ -1,17 +1,20 @@
 import { createEnv } from '@t3-oss/env-core';
 import { config } from 'dotenv';
 import { IANAZone } from 'luxon';
-import { pino } from 'pino';
 import { z } from 'zod';
 
 import { getConfiguration } from './docker-secret.js';
+import { isVerbose, logger } from './logger.js';
 
-const logger = pino({
-  level: 'info',
-});
+// Apply LOG_LEVEL as early as possible so dotenv and startup logs honor it.
+// At this point only system env is available (the .env file is loaded below),
+// which is enough to decide verbosity; the validated value is reapplied later.
+const earlyLogLevel = process.env.LOG_LEVEL ?? 'info';
+logger.level = earlyLogLevel;
 
 try {
-  config();
+  // `quiet` suppresses dotenv's own injection banner when not running verbose.
+  config({ quiet: !isVerbose(earlyLogLevel) });
   logger.info('Loaded environment variables from .env file.');
 } catch (error) {
   logger.warn({ err: error }, 'Unable to load .env file. Using system environment variables.');
@@ -143,3 +146,7 @@ export const env = createEnv({
     TIMEZONE: timezoneSchema,
   },
 });
+
+// Reapply the validated level (which may come from a docker secret rather than
+// process.env) now that the full configuration has been parsed.
+logger.level = env.LOG_LEVEL;

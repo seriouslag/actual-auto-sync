@@ -13,11 +13,13 @@ FROM node:24.17.0-slim
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm
+# Enable pnpm (corepack pins the version from package.json "packageManager")
+RUN corepack enable
 
-# Copy package files for dependency installation
-COPY package.json pnpm-lock.yaml ./
+# Copy package files for dependency installation.
+# pnpm-workspace.yaml carries pnpm 11 settings (minimumReleaseAge) and must be
+# present before install.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Install dependencies (ignore-scripts to skip lefthook which requires git)
 RUN pnpm install --frozen-lockfile --ignore-scripts

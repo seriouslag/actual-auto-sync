@@ -1,3 +1,15 @@
-onlyBuiltDependencies:
-  - better-sqlite3
-  - esbuild
+# pnpm 11 approves dependency build scripts via `allowBuilds` (it no longer
+# reads the package.json "pnpm".onlyBuiltDependencies field). better-sqlite3
+# needs its native binding built; esbuild and lefthook have install scripts.
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+  lefthook: true
+
+# pnpm 11 enables a default minimumReleaseAge (~1 day) supply-chain gate that
+# rejects freshly published packages. With a committed lockfile + reviewed
+# Renovate PRs as the supply-chain control, that default only makes CI
+# non-deterministic (it fails whenever a dep was published <1 day ago). Disable
+# it to match the prior pnpm 10 behavior; set a positive value in minutes to
+# re-enable the delay.
+minimumReleaseAge: 0

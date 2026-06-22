@@ -2,14 +2,7 @@ import type { Dirent } from 'node:fs';
 import { mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import {
-  downloadBudget,
-  init,
-  internal,
-  runBankSync,
-  shutdown,
-  sync as syncBudget,
-} from '@actual-app/api';
+import { downloadBudget, init, runBankSync, shutdown, sync as syncBudget } from '@actual-app/api';
 import cronstrue from 'cronstrue';
 
 import { env } from './env.js';
@@ -23,6 +16,31 @@ export function formatCronSchedule(schedule: string) {
   return cronstrue.toString(schedule).toLowerCase();
 }
 
+// Handle returned by `init()`. The module-level `internal` export is deprecated
+// in favor of this value, so we keep it from the last successful init() call.
+type ActualApi = Awaited<ReturnType<typeof init>>;
+let actualApi: ActualApi | undefined;
+
+/**
+ * Narrow view of the Actual API handle used for CRDT balance writes. Accepting
+ * this subset keeps the balance-sync helpers easy to call with a real `init()`
+ * handle or a lightweight test double.
+ */
+interface BalanceSyncApi {
+  db: {
+    getAccounts: ActualApi['db']['getAccounts'];
+    update: ActualApi['db']['update'];
+  };
+}
+
+/** Returns the live Actual API handle, throwing a clear error if init() has not run. */
+function getActualApi(): ActualApi {
+  if (!actualApi) {
+    throw new Error('Actual API is not initialized; init() must run first.');
+  }
+  return actualApi;
+}
+
 interface AccountBalanceRow {
   id: string;
   balance_current?: number | null;
@@ -32,10 +50,10 @@ interface AccountBalanceSyncInput {
   readFailed: boolean;
 }
 
-async function getAccountsForBalanceSync(): Promise<AccountBalanceSyncInput> {
+async function getAccountsForBalanceSync(api: BalanceSyncApi): Promise<AccountBalanceSyncInput> {
   try {
     return {
-      accounts: (await internal.db.getAccounts()) as AccountBalanceRow[],
+      accounts: (await api.db.getAccounts()) as AccountBalanceRow[],
       readFailed: false,
     };
   } catch (error) {
@@ -47,9 +65,12 @@ async function getAccountsForBalanceSync(): Promise<AccountBalanceSyncInput> {
   }
 }
 
-async function syncAccountBalanceToCRDT(account: AccountBalanceRow): Promise<boolean> {
+async function syncAccountBalanceToCRDT(
+  api: BalanceSyncApi,
+  account: AccountBalanceRow,
+): Promise<boolean> {
   try {
-    await internal.db.update('accounts', {
+    await api.db.update('accounts', {
       id: account.id,
       balance_current: account.balance_current,
     });
@@ -64,8 +85,8 @@ async function syncAccountBalanceToCRDT(account: AccountBalanceRow): Promise<boo
 }
 
 /** Persists current numeric account balances via CRDT row updates for the loaded budget. */
-export async function syncAccountBalancesToCRDT() {
-  const { accounts, readFailed } = await getAccountsForBalanceSync();
+export async function syncAccountBalancesToCRDT(api: BalanceSyncApi) {
+  const { accounts, readFailed } = await getAccountsForBalanceSync(api);
   if (readFailed) {
     return false;
   }
@@ -73,7 +94,7 @@ export async function syncAccountBalancesToCRDT() {
   let hasSyncErrors = false;
   for (const account of accounts) {
     if (typeof account.balance_current === 'number') {
-      const synced = await syncAccountBalanceToCRDT(account);
+      const synced = await syncAccountBalanceToCRDT(api, account);
       if (!synced) {
         hasSyncErrors = true;
       }
@@ -83,12 +104,12 @@ export async function syncAccountBalancesToCRDT() {
   return !hasSyncErrors;
 }
 
-async function syncBankAccounts() {
+async function syncBankAccounts(api: BalanceSyncApi) {
   logger.info('Syncing all accounts...');
   await runBankSync();
   logger.info('All accounts synced.');
   logger.info('Syncing account balances through CRDT...');
-  const syncedBalances = await syncAccountBalancesToCRDT();
+  const syncedBalances = await syncAccountBalancesToCRDT(api);
   if (syncedBalances) {
     logger.info('Account balances synced through CRDT.');
   } else {
@@ -103,9 +124,9 @@ async function syncBudgetToServer() {
 }
 
 /** Runs bank sync, then pushes synced balance state to the server for the loaded budget. */
-export async function syncAllAccounts() {
+export async function syncAllAccounts(api: BalanceSyncApi) {
   // Runs against the currently loaded budget in the Actual API session.
-  await syncBankAccounts();
+  await syncBankAccounts(api);
   await syncBudgetToServer();
 }
 
@@ -115,7 +136,7 @@ async function createDataDirAndInitApi() {
     await mkdir(ACTUAL_DATA_DIR, { recursive: true });
     logger.info('Data directory created successfully.');
     logger.info('Initializing Actual API...');
-    await init({
+    actualApi = await init({
       dataDir: ACTUAL_DATA_DIR,
       serverURL: env.ACTUAL_SERVER_URL,
       password: env.ACTUAL_SERVER_PASSWORD,
@@ -213,7 +234,7 @@ async function downloadAndSyncBudget(budgetId: string, index: number) {
       logger.info(`Budget ${budgetId} downloaded successfully.`);
 
       logger.info(`Syncing accounts for budget ${budgetId}...`);
-      await syncAllAccounts();
+      await syncAllAccounts(getActualApi());
       logger.info(`Accounts synced successfully for budget ${budgetId}.`);
       return;
     } catch (error) {
@@ -291,6 +312,7 @@ async function runSyncCycle() {
 async function shutdownApi() {
   logger.info('Shutting down...');
   await shutdown();
+  actualApi = undefined;
   logger.info('Shutdown complete.');
 }
 

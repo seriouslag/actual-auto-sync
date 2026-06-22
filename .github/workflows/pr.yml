@@ -64,3 +64,24 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
           fail_ci_if_error: false
+
+  # Builds the shipped Dockerfile (the e2e job builds Dockerfile.e2e, so the
+  # production image is otherwise never exercised in CI) and verifies it runs
+  # unprivileged as uid 1000.
+  docker-image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build production image
+        run: docker build -t actual-auto-sync:ci .
+
+      - name: Verify the image runs as non-root (uid 1000)
+        run: |
+          uid="$(docker run --rm --entrypoint sh actual-auto-sync:ci -c 'id -u')"
+          echo "runtime uid: ${uid}"
+          if [ "${uid}" != "1000" ]; then
+            echo "::error::expected the container to run as uid 1000, got ${uid}"
+            exit 1
+          fi

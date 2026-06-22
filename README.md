@@ -26,6 +26,7 @@ The service requires the following environment variables:
 - `TIMEZONE`: Timezone for the cron job (default: `Etc/UTC`)
 - `RUN_ON_START`: Whether to run the sync on startup (default: `false`) - Please note that when setting this to `true`, you may get a notice email from SimpleFin (if you use that service), as they expect only a bank sync once a day.
 - `SKIP_FAILED_ACCOUNTS`: Whether to sync each account individually and skip (rather than abort on) accounts that fail (default: `false`). When `false`, all accounts sync in a single request and any one failure aborts the budget's sync. When `true`, a failing account is logged and skipped so the rest still sync. Note: per-account syncing can result in more requests to your bank aggregator (e.g. SimpleFIN), which may matter for rate limits.
+- `ACTUAL_DATA_DIR`: Directory where budget data and caches are written (default: `./data`; `/data` in the Docker image). Point this at a mounted/tmpfs path to run the container with a read-only root filesystem.
 
 You can find your budget sync IDs in the Actual Budget app > _Selected Budget_ > Settings > Advanced Settings > Sync ID.
 
@@ -150,6 +151,29 @@ Where files
 - `actual_server_password.txt`
 - `encryption_passwords.txt`
   are file text files next to your `docker-compose.yml` and containing your secrets
+
+### Running as non-root with a read-only filesystem
+
+The image runs as the unprivileged `node` user (uid/gid `1000`) by default. The only path the app needs to write is its data directory, which defaults to `ACTUAL_DATA_DIR=/data` in the image. Mount that as a writable volume (or tmpfs) and you can lock the rest of the container down with a read-only root filesystem:
+
+```yaml
+services:
+  actual-auto-sync:
+    image: seriouslag/actual-auto-sync:latest
+    read_only: true
+    volumes:
+      - ./actual-auto-sync-data:/data
+    environment:
+      - ACTUAL_SERVER_URL=your-server-url
+      - ACTUAL_SERVER_PASSWORD=your-password
+      - ACTUAL_BUDGET_SYNC_IDS=1cf9fbf9-97b7-4647-8128-8afec1b1fbe2
+```
+
+The host-mounted directory must be writable by uid/gid `1000`. To match a different host user, build the image with custom ids:
+
+```bash
+docker build --build-arg APP_UID=1001 --build-arg APP_GID=1001 -t actual-auto-sync .
+```
 
 ## Development
 

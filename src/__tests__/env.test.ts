@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  actualDataDirSchema,
   budgetIdSchema,
   cronScheduleSchema,
   encryptionPasswordSchema,
@@ -249,6 +250,20 @@ describe('Environment Configuration', () => {
 
       it('should default to false when not provided', () => {
         expect(skipFailedAccountsSchema.parse(undefined)).toBe(false);
+      });
+    });
+
+    describe('ACTUAL_DATA_DIR', () => {
+      it('should default to ./data when not provided', () => {
+        expect(actualDataDirSchema.parse(undefined)).toBe('./data');
+      });
+
+      it('should accept and trim a custom path', () => {
+        expect(actualDataDirSchema.parse('  /data  ')).toBe('/data');
+      });
+
+      it('should reject an empty string', () => {
+        expect(() => actualDataDirSchema.parse('')).toThrow();
       });
     });
   });

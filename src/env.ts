@@ -112,6 +112,13 @@ export const serverUrlSchema = z.string().trim().min(1);
  */
 export const serverPasswordSchema = z.string().min(1);
 
+/**
+ * Directory where the Actual API writes budget data and caches. Override it to a
+ * mounted/tmpfs path so the container can run with a read-only root filesystem.
+ * @default "./data"
+ */
+export const actualDataDirSchema = z.string().trim().min(1).default('./data');
+
 export const env = createEnv({
   client: {},
   /**
@@ -141,6 +148,7 @@ export const env = createEnv({
    */
   runtimeEnv: {
     ACTUAL_BUDGET_SYNC_IDS: await getConfiguration('ACTUAL_BUDGET_SYNC_IDS'),
+    ACTUAL_DATA_DIR: await getConfiguration('ACTUAL_DATA_DIR'),
     ACTUAL_SERVER_PASSWORD: await getConfiguration('ACTUAL_SERVER_PASSWORD'),
     ACTUAL_SERVER_URL: await getConfiguration('ACTUAL_SERVER_URL'),
     CRON_SCHEDULE: await getConfiguration('CRON_SCHEDULE'),
@@ -153,6 +161,7 @@ export const env = createEnv({
 
   server: {
     ACTUAL_BUDGET_SYNC_IDS: budgetIdSchema,
+    ACTUAL_DATA_DIR: actualDataDirSchema,
     ACTUAL_SERVER_PASSWORD: serverPasswordSchema,
     ACTUAL_SERVER_URL: serverUrlSchema,
     CRON_SCHEDULE: cronScheduleSchema,

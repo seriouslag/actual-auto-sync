@@ -56,6 +56,7 @@ vi.mock('../env.js', () => ({
   env: {
     ACTUAL_SERVER_URL: 'http://localhost:5006',
     ACTUAL_SERVER_PASSWORD: 'test-password',
+    ACTUAL_DATA_DIR: './data',
     CRON_SCHEDULE: '0 0 * * *',
     ACTUAL_BUDGET_SYNC_IDS: ['budget1', 'budget2'],
     ENCRYPTION_PASSWORDS: ['pass1', 'pass2'],

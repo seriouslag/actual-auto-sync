@@ -6,29 +6,59 @@
 
 A background service that automatically runs the bank sync on a scheduled basis on Actual Budget.
 
+It connects to your Actual Budget server with the official [`@actual-app/api`](https://www.npmjs.com/package/@actual-app/api), downloads your budgets, runs the bank sync, and pushes the changes back to the server — on whatever schedule you configure.
+
+## Contents
+
+- [Features](#features)
+- [Configuration](#configuration)
+  - [Environment variables](#environment-variables)
+  - [Environment variables from files (Docker secrets)](#environment-variables-from-files-docker-secrets)
+  - [If using with OIDC auth provider](#if-using-with-oidc-auth-provider-in-actual-budget-server)
+- [Running with Docker (pull from Docker Hub)](#running-with-docker-pull-from-docker-hub)
+- [Development](#development)
+- [License](#license)
+- [FAQ](#faq)
+
 ## Features
 
-- Automatically runs bank sync on all your Actual Budget accounts on a configurable schedule
-- Uses the official Actual Budget API for reliable synchronization
+- Automatically runs bank sync on all your Actual Budget accounts on a configurable cron schedule
+- Syncs **multiple budgets** in a single run
+- Supports **end-to-end encrypted budgets** via per-budget encryption passwords
+- Pushes updated account balances back to the server through CRDT writes
+- **Self-healing retries**: on a failed budget sync it rebuilds the API session and clears stale local cache before retrying
+- Optional per-account sync mode that skips failing accounts instead of aborting the whole budget
+- Reads configuration from the environment or from files (Docker secrets) via the `_FILE` convention
+- Ships as a Docker image that runs as a non-root user and supports a read-only root filesystem
 - Configurable logging levels for monitoring and debugging
-- Runs in a Docker container for easy deployment
+- Uses the official Actual Budget API for reliable synchronization
 
 ## Configuration
 
-The service requires the following environment variables:
+### Environment variables
 
-- `ACTUAL_SERVER_URL`: URL of your Actual Budget server
-- `ACTUAL_SERVER_PASSWORD`: Password for your Actual Budget server
-- `CRON_SCHEDULE`: Cron expression for scheduling syncs (default: `0 1 * * *` - daily at 1am)
-- `LOG_LEVEL`: Logging level — one of `debug`, `info`, `warn`, `error` (default: `info`). At `warn` or `error` the verbose console output from `@actual-app/api` is suppressed.
-- `ACTUAL_BUDGET_SYNC_IDS`: Comma-separated list of budget IDs to sync (e.g. "1cf9fbf9-97b7-4647-8128-8afec1b1fbe2,030d7094-aae8-4d70-aeee-9e29d30d9b88")
-- `ENCRYPTION_PASSWORDS`: Comma-separated list of encryption passwords for each account in the ACTUAL_BUDGET_SYNC_IDS list (e.g. "password1,password2") or leave empty if you don't encrypt your data, the position of the password in the list is the position of the account in the ACTUAL_BUDGET_SYNC_IDS list; to skip an account add a comma to the list in that position
-- `TIMEZONE`: Timezone for the cron job (default: `Etc/UTC`)
-- `RUN_ON_START`: Whether to run the sync on startup (default: `false`) - Please note that when setting this to `true`, you may get a notice email from SimpleFin (if you use that service), as they expect only a bank sync once a day.
-- `SKIP_FAILED_ACCOUNTS`: Whether to sync each account individually and skip (rather than abort on) accounts that fail (default: `false`). When `false`, all accounts sync in a single request and any one failure aborts the budget's sync. When `true`, a failing account is logged and skipped so the rest still sync. Note: per-account syncing can result in more requests to your bank aggregator (e.g. SimpleFIN), which may matter for rate limits.
-- `ACTUAL_DATA_DIR`: Directory where budget data and caches are written (default: `./data`; `/data` in the Docker image). Point this at a mounted/tmpfs path to run the container with a read-only root filesystem.
+| Variable                 | Required | Default                                            | Description                                                                                                                 |
+| ------------------------ | -------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `ACTUAL_SERVER_URL`      | Yes      | —                                                  | URL of your Actual Budget server.                                                                                           |
+| `ACTUAL_SERVER_PASSWORD` | Yes      | —                                                  | Password for your Actual Budget server.                                                                                     |
+| `ACTUAL_BUDGET_SYNC_IDS` | Yes      | —                                                  | Comma-separated list of budget sync IDs to sync (e.g. `1cf9fbf9-...,030d7094-...`).                                         |
+| `ENCRYPTION_PASSWORDS`   | No       | _(empty)_                                          | Comma-separated encryption passwords, positionally matched to `ACTUAL_BUDGET_SYNC_IDS`. See note below.                     |
+| `CRON_SCHEDULE`          | No       | `0 1 * * *` (daily at 1am)                         | Cron expression for scheduling syncs.                                                                                       |
+| `TIMEZONE`               | No       | `Etc/UTC` (`America/New_York` in the Docker image) | IANA time zone applied to `CRON_SCHEDULE` (e.g. `America/New_York`).                                                        |
+| `LOG_LEVEL`              | No       | `info`                                             | One of `debug`, `info`, `warn`, `error`. At `warn`/`error` the verbose console output from `@actual-app/api` is suppressed. |
+| `RUN_ON_START`           | No       | `false`                                            | Run a sync immediately on startup, in addition to the schedule. See note below.                                             |
+| `SKIP_FAILED_ACCOUNTS`   | No       | `false`                                            | Sync each account individually and skip failing ones instead of aborting the budget. See note below.                        |
+| `ACTUAL_DATA_DIR`        | No       | `./data` (`/data` in the Docker image)             | Directory where budget data and caches are written. Point at a mounted/tmpfs path to run with a read-only root filesystem.  |
 
 You can find your budget sync IDs in the Actual Budget app > _Selected Budget_ > Settings > Advanced Settings > Sync ID.
+
+Boolean variables (`RUN_ON_START`, `SKIP_FAILED_ACCOUNTS`) accept `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off`.
+
+**`ENCRYPTION_PASSWORDS`** — Leave empty if you don't encrypt your budgets. The position of each password matches the position of the budget in `ACTUAL_BUDGET_SYNC_IDS`. To skip a budget (no password), leave its slot empty by placing a comma in that position, e.g. `password1,,password3`.
+
+**`RUN_ON_START`** — When set to `true` you may get a notice email from SimpleFIN (if you use that service), as they expect only one bank sync per day.
+
+**`SKIP_FAILED_ACCOUNTS`** — When `false`, all accounts sync in a single request and any one failure aborts the budget's sync. When `true`, each account syncs individually and a failing account is logged and skipped so the rest still sync. Note: per-account syncing can result in more requests to your bank aggregator (e.g. SimpleFIN), which may matter for rate limits.
 
 ### Environment variables from files (Docker secrets)
 
@@ -64,7 +94,7 @@ services:
   ...
 ```
 
-## Running with Docker (pull from docker hub)
+## Running with Docker (pull from Docker Hub)
 
 Published tags include:
 
@@ -179,8 +209,8 @@ docker build --build-arg APP_UID=1001 --build-arg APP_GID=1001 -t actual-auto-sy
 
 ### Prerequisites
 
-- Node.js >= 22
-- pnpm >= 10.8.1
+- Node.js >= 22 (CI and the Docker image use Node 24)
+- pnpm >= 11 (the repo pins `pnpm@11.8.0`; run `corepack enable` to use the pinned version)
 
 ### Setup local (non-docker)
 
@@ -206,6 +236,20 @@ docker build --build-arg APP_UID=1001 --build-arg APP_GID=1001 -t actual-auto-sy
    ```bash
    pnpm start
    ```
+
+### Scripts
+
+```bash
+pnpm start            # Run locally with the ts-node ESM loader
+pnpm test             # Run unit tests (Vitest, watch mode)
+pnpm test:coverage    # Run unit tests once with coverage
+pnpm test:e2e         # Run e2e tests (needs an Actual server on localhost:5006)
+pnpm test:e2e:docker  # Run e2e tests in Docker (spins up the server automatically)
+pnpm build            # Type-check / compile with tsc
+pnpm lint             # Lint with oxlint
+pnpm format           # Format with oxfmt
+pnpm check            # lint + format check + build
+```
 
 ### Running with Docker (build locally)
 

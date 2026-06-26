@@ -47,10 +47,14 @@ describe('cron.ts functions', () => {
     const apiModule = await import('@actual-app/api');
     const loggerModule = await import('../logger.js');
     const utilsModule = await import('../utils.js');
+    const envModule = await import('../env.js');
 
     mockShutdown = vi.mocked(apiModule.shutdown);
     mockLogger = vi.mocked(loggerModule.logger);
     mockSync = vi.mocked(utilsModule.sync);
+
+    // Reset RUN_ON_START so tests that mutate it don't leak state.
+    (envModule.env as any).RUN_ON_START = false;
 
     // Create a mock CronJob instance
     mockCronJobInstance = {
@@ -221,6 +225,35 @@ describe('cron.ts functions', () => {
 
       expect(capturedOnTick).toBeDefined();
       expect(typeof capturedOnTick).toBe('function');
+    });
+
+    it('should pass runOnInit: true when RUN_ON_START is true', async () => {
+      const { env } = await import('../env.js');
+      (env as any).RUN_ON_START = true;
+
+      const { createCronJob } = await import('../cron.js');
+      createCronJob();
+
+      expect(mockCronJobFrom).toHaveBeenCalledWith(expect.objectContaining({ runOnInit: true }));
+    });
+
+    it('onComplete closure invokes onComplete with the cron job instance', async () => {
+      let capturedOnComplete: Function | undefined;
+
+      mockCronJobFrom.mockImplementation((config: any) => {
+        capturedOnComplete = config.onComplete;
+        return mockCronJobInstance;
+      });
+
+      const { createCronJob } = await import('../cron.js');
+      createCronJob();
+
+      expect(capturedOnComplete).toBeDefined();
+      capturedOnComplete!();
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        `Cron job completed. Next run is in ${DateTime.fromISO('2024-01-01T00:00:00.000Z').toLocaleString(DateTime.DATETIME_FULL)}`,
+      );
     });
   });
 

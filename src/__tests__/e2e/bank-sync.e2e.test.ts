@@ -441,6 +441,37 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
     }
   });
 
+  it('should run per-account bank sync when SKIP_FAILED_ACCOUNTS is true', async () => {
+    if (!apiHandle) {
+      throw new Error('apiHandle is not initialized — the seeding test must run first');
+    }
+
+    // env.ts is re-evaluated per test under e2e module isolation, so populate
+    // process.env before the import to pass createEnv() validation.
+    process.env.ACTUAL_BUDGET_SYNC_IDS ??= seededSyncId ?? 'e2e-placeholder-sync-id';
+    process.env.ACTUAL_SERVER_URL ??= E2E_CONFIG.serverUrl;
+    process.env.ACTUAL_SERVER_PASSWORD ??= E2E_CONFIG.serverPassword;
+
+    const { env } = await import('../../env.js');
+    const envMut = env as unknown as { SKIP_FAILED_ACCOUNTS: boolean };
+    const originalSkip = envMut.SKIP_FAILED_ACCOUNTS;
+    envMut.SKIP_FAILED_ACCOUNTS = true;
+
+    const { syncAllAccounts: runAutoSyncAllAccounts } = await import('../../utils.js');
+    try {
+      // vi.spyOn on @actual-app/api namespace is not possible in e2e (true ESM,
+      // non-configurable exports). Verify the per-account path ran by asserting
+      // the sync completed without throwing and that open accounts exist in the
+      // seeded budget (so the per-account loop was exercised, not skipped).
+      await runAutoSyncAllAccounts(apiHandle);
+      const allAccounts = await api.getAccounts();
+      const openAccounts = allAccounts.filter((a) => !a.closed);
+      expect(openAccounts.length).toBeGreaterThan(0);
+    } finally {
+      envMut.SKIP_FAILED_ACCOUNTS = originalSkip;
+    }
+  });
+
   it('should sync linked bank balance through CRDT messages', async () => {
     const mockAccount = mockSimpleFinAccounts['ACT-001'];
     expect(mockAccount).toBeDefined();

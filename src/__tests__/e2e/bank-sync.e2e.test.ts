@@ -455,7 +455,8 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
     const runBankSyncSpy = vi.spyOn(api, 'runBankSync');
     try {
       await runAutoSyncAllAccounts(apiHandle);
-      const openAccounts = (await api.getAccounts()).filter((a) => !a.closed);
+      const allAccounts = await api.getAccounts();
+      const openAccounts = allAccounts.filter((a) => !a.closed);
       expect(runBankSyncSpy).toHaveBeenCalledTimes(openAccounts.length);
       for (const account of openAccounts) {
         expect(runBankSyncSpy).toHaveBeenCalledWith({ accountId: account.id });

@@ -13,7 +13,7 @@ import { rm } from 'node:fs/promises';
  * 4. Transaction Fixtures - Tests transaction data and filtering
  */
 import * as api from '@actual-app/api';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   E2E_CONFIG,
@@ -442,9 +442,9 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
   });
 
   it('should run per-account bank sync when SKIP_FAILED_ACCOUNTS is true', async () => {
-    process.env.ACTUAL_BUDGET_SYNC_IDS ??= seededSyncId ?? 'e2e-placeholder-sync-id';
-    process.env.ACTUAL_SERVER_URL ??= E2E_CONFIG.serverUrl;
-    process.env.ACTUAL_SERVER_PASSWORD ??= E2E_CONFIG.serverPassword;
+    if (!apiHandle) {
+      throw new Error('apiHandle is not initialized — the seeding test must run first');
+    }
 
     const { env } = await import('../../env.js');
     const envMut = env as unknown as { SKIP_FAILED_ACCOUNTS: boolean };
@@ -452,9 +452,16 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
     envMut.SKIP_FAILED_ACCOUNTS = true;
 
     const { syncAllAccounts: runAutoSyncAllAccounts } = await import('../../utils.js');
+    const runBankSyncSpy = vi.spyOn(api, 'runBankSync');
     try {
       await runAutoSyncAllAccounts(apiHandle);
+      const openAccounts = (await api.getAccounts()).filter((a) => !a.closed);
+      expect(runBankSyncSpy).toHaveBeenCalledTimes(openAccounts.length);
+      for (const account of openAccounts) {
+        expect(runBankSyncSpy).toHaveBeenCalledWith({ accountId: account.id });
+      }
     } finally {
+      runBankSyncSpy.mockRestore();
       envMut.SKIP_FAILED_ACCOUNTS = originalSkip;
     }
   });

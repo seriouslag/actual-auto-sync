@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../cron.js', () => ({
   createCronJob: vi.fn(),
@@ -11,12 +11,7 @@ vi.mock('../error-handlers.js', () => ({
 
 describe('index.ts', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     vi.resetModules();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it('registers error handlers, creates and starts the cron job', async () => {

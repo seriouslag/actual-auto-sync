@@ -446,6 +446,12 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
       throw new Error('apiHandle is not initialized — the seeding test must run first');
     }
 
+    // env.ts is re-evaluated per test under e2e module isolation, so populate
+    // process.env before the import to pass createEnv() validation.
+    process.env.ACTUAL_BUDGET_SYNC_IDS ??= seededSyncId ?? 'e2e-placeholder-sync-id';
+    process.env.ACTUAL_SERVER_URL ??= E2E_CONFIG.serverUrl;
+    process.env.ACTUAL_SERVER_PASSWORD ??= E2E_CONFIG.serverPassword;
+
     const { env } = await import('../../env.js');
     const envMut = env as unknown as { SKIP_FAILED_ACCOUNTS: boolean };
     const originalSkip = envMut.SKIP_FAILED_ACCOUNTS;

@@ -189,6 +189,11 @@ describe('Environment Configuration', () => {
         const result = timezoneSchema.parse(undefined);
         expect(result).toBe('Etc/UTC');
       });
+
+      it('should reject invalid IANA timezone strings', () => {
+        expect(() => timezoneSchema.parse('Not/AZone')).toThrow();
+        expect(() => timezoneSchema.parse('invalid')).toThrow();
+      });
     });
 
     describe('RUN_ON_START', () => {

@@ -441,6 +441,24 @@ describe('E2E: SimpleFIN with Actual Budget Server', () => {
     }
   });
 
+  it('should run per-account bank sync when SKIP_FAILED_ACCOUNTS is true', async () => {
+    process.env.ACTUAL_BUDGET_SYNC_IDS ??= seededSyncId ?? 'e2e-placeholder-sync-id';
+    process.env.ACTUAL_SERVER_URL ??= E2E_CONFIG.serverUrl;
+    process.env.ACTUAL_SERVER_PASSWORD ??= E2E_CONFIG.serverPassword;
+
+    const { env } = await import('../../env.js');
+    const envMut = env as unknown as { SKIP_FAILED_ACCOUNTS: boolean };
+    const originalSkip = envMut.SKIP_FAILED_ACCOUNTS;
+    envMut.SKIP_FAILED_ACCOUNTS = true;
+
+    const { syncAllAccounts: runAutoSyncAllAccounts } = await import('../../utils.js');
+    try {
+      await runAutoSyncAllAccounts(apiHandle);
+    } finally {
+      envMut.SKIP_FAILED_ACCOUNTS = originalSkip;
+    }
+  });
+
   it('should sync linked bank balance through CRDT messages', async () => {
     const mockAccount = mockSimpleFinAccounts['ACT-001'];
     expect(mockAccount).toBeDefined();

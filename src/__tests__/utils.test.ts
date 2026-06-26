@@ -238,6 +238,33 @@ describe('utils.ts functions', () => {
         expect(syncBudget).toHaveBeenCalled();
       });
 
+      it('logs warn and still syncs the budget when all accounts fail', async () => {
+        const error = new Error('provider down');
+        vi.mocked(getAccounts).mockResolvedValue([
+          { id: 'acc-1', name: 'Checking' },
+          { id: 'acc-2', name: 'Savings' },
+        ]);
+        vi.mocked(runBankSync).mockRejectedValue(error);
+
+        await syncAllAccounts(fakeApi);
+
+        expect(logger.warn).toHaveBeenCalledWith(
+          { failedAccounts: ['Checking', 'Savings'] },
+          'Bank sync completed with 2 failed account(s): Checking, Savings.',
+        );
+        expect(syncBudget).toHaveBeenCalled();
+      });
+
+      it('does not call runBankSync when there are no open accounts', async () => {
+        vi.mocked(getAccounts).mockResolvedValue([{ id: 'acc-1', name: 'Closed', closed: true }]);
+
+        await syncAllAccounts(fakeApi);
+
+        expect(runBankSync).not.toHaveBeenCalled();
+        expect(logger.warn).not.toHaveBeenCalled();
+        expect(syncBudget).toHaveBeenCalled();
+      });
+
       it('labels a failing unnamed account by its id', async () => {
         const error = new Error('boom');
         vi.mocked(getAccounts).mockResolvedValue([{ id: 'acc-x', name: '' }]);
@@ -274,6 +301,15 @@ describe('utils.ts functions', () => {
         id: 'acc-3',
         balance_current: -500,
       });
+    });
+
+    it('should return true when there are no accounts', async () => {
+      vi.mocked(mockDb.getAccounts).mockResolvedValue([]);
+
+      const result = await syncAccountBalancesToCRDT(fakeApi);
+
+      expect(result).toBe(true);
+      expect(mockDb.update).not.toHaveBeenCalled();
     });
 
     it('should log errors from getAccounts and continue', async () => {

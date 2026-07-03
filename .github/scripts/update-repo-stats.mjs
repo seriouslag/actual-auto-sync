@@ -6,10 +6,7 @@ if (!token) {
   throw new Error('GITHUB_TOKEN is required.');
 }
 
-const repos = [
-  { owner: 'seriouslag', repo: 'actual-auto-sync' },
-  { owner: 'seriouslag', repo: 'openapi-ts-nx-plugin' },
-];
+const repos = [{ owner: 'seriouslag', repo: 'actual-auto-sync' }];
 
 const timeZone = 'America/Indiana/Indianapolis';
 

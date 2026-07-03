@@ -6,7 +6,8 @@ on:
     - cron: '15 12 * * *'
 
 permissions:
-  contents: write
+  contents: read
+  issues: write
 
 jobs:
   update-repo-stats:
@@ -16,13 +17,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate repository stats
+      - name: Update repository stats issue
         run: node .github/scripts/update-repo-stats.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Commit repository stats
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: 'chore: update repository stats'
-          file_pattern: .github/repo-stats.json

@@ -39,7 +39,7 @@ jobs:
           if [ -n "$issue_number" ]; then
             gh issue edit "$issue_number" --body-file repo-stats-issue.md
           else
-            gh issue create --title 'Repository Stats' --label repo-stats --body-file repo-stats-issue.md
+            gh issue create --title 'Repository Stats' --body-file repo-stats-issue.md
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

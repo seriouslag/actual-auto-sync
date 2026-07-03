@@ -3,12 +3,7 @@ name: Repository Stats
 on:
   workflow_dispatch:
   schedule:
-    # Runs daily at 8:15 AM America/Indiana/Indianapolis during EDT.
-    # Note: GitHub cron uses UTC and does not auto-adjust for DST.
-    - cron: "15 12 * * *"
-
-permissions:
-  contents: write
+    - cron: '15 12 * * *'
 
 jobs:
   update-repo-stats:
@@ -18,108 +13,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate repository stats
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-
-            const repos = [
-              { owner: 'seriouslag', repo: 'actual-auto-sync' },
-              { owner: 'seriouslag', repo: 'openapi-ts-nx-plugin' },
-            ];
-
-            const timeZone = 'America/Indiana/Indianapolis';
-
-            const getParts = (date) => {
-              const parts = new Intl.DateTimeFormat('en-US', {
-                timeZone,
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-              }).formatToParts(date);
-
-              return Object.fromEntries(parts.map((part) => [part.type, part.value]));
-            };
-
-            const now = new Date();
-            const todayParts = getParts(now);
-            const todayUtcMidnight = new Date(`${todayParts.year}-${todayParts.month}-${todayParts.day}T00:00:00Z`);
-            const previousDayUtcMidnight = new Date(todayUtcMidnight.getTime() - 24 * 60 * 60 * 1000);
-            const previousDayParts = getParts(previousDayUtcMidnight);
-
-            // Build previous calendar day boundaries in the target timezone.
-            // Indianapolis is currently UTC-04 during EDT and UTC-05 during EST.
-            // This uses GitHub-hosted Node's timezone formatting to select the calendar day,
-            // then filters stargazer timestamps by that day in the same timezone.
-            const previousDayKey = `${previousDayParts.year}-${previousDayParts.month}-${previousDayParts.day}`;
-
-            const getLocalDateKey = (date) => {
-              const parts = getParts(date);
-              return `${parts.year}-${parts.month}-${parts.day}`;
-            };
-
-            async function getNewStargazersPreviousDay(owner, repo) {
-              const newStargazers = [];
-
-              for await (const response of github.paginate.iterator(
-                github.rest.activity.listStargazersForRepo,
-                {
-                  owner,
-                  repo,
-                  per_page: 100,
-                  headers: {
-                    accept: 'application/vnd.github.star+json',
-                  },
-                },
-              )) {
-                for (const item of response.data) {
-                  const starredAt = item.starred_at;
-                  if (!starredAt) continue;
-
-                  const starredDate = new Date(starredAt);
-                  const starredDayKey = getLocalDateKey(starredDate);
-
-                  if (starredDayKey === previousDayKey) {
-                    newStargazers.push({
-                      login: item.user?.login ?? null,
-                      htmlUrl: item.user?.html_url ?? null,
-                      starredAt,
-                    });
-                  }
-                }
-              }
-
-              return newStargazers;
-            }
-
-            const stats = [];
-
-            for (const { owner, repo } of repos) {
-              const repository = await github.rest.repos.get({ owner, repo });
-              const newStargazers = await getNewStargazersPreviousDay(owner, repo);
-
-              stats.push({
-                fullName: `${owner}/${repo}`,
-                stars: repository.data.stargazers_count,
-                newStarsPreviousDay: newStargazers.length,
-                newStargazersPreviousDay: newStargazers,
-              });
-            }
-
-            const output = {
-              generatedAt: now.toISOString(),
-              window: {
-                timezone: timeZone,
-                previousDay: previousDayKey,
-              },
-              repositories: stats,
-            };
-
-            fs.writeFileSync('.github/repo-stats.json', `${JSON.stringify(output, null, 2)}\n`);
-
-      - name: Commit repository stats
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: update repository stats"
-          file_pattern: .github/repo-stats.json
+      - name: Placeholder
+        run: echo 'Repository stats workflow placeholder'

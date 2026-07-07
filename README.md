@@ -180,7 +180,7 @@ Where files
 - `actual_budget_sync_id.txt`
 - `actual_server_password.txt`
 - `encryption_passwords.txt`
-  are file text files next to your `docker-compose.yml` and containing your secrets
+  are plain text files next to your `docker-compose.yml` and containing your secrets
 
 ### Running as non-root with a read-only filesystem
 

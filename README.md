@@ -96,7 +96,15 @@ services:
 
 ## Running with Docker (pull from Docker Hub)
 
-Images are published as multi-arch manifests for `linux/amd64` and `linux/arm64`, so `docker pull` / `docker run` automatically selects the right build for your host. The `linux/arm64` image requires a 64-bit ARM (ARM64/aarch64) operating system — for example Apple Silicon, an ARM-based NAS/server, or a Raspberry Pi 4/5 running a 64-bit OS. A 32-bit ARM OS (such as 32-bit Raspberry Pi OS) cannot use the `linux/arm64` image.
+Images are published as multi-arch manifests, so `docker pull` / `docker run` automatically selects the right build for your host.
+
+**Supported platforms:**
+
+- `linux/amd64` — x86-64 (Intel/AMD)
+- `linux/arm64` — 64-bit ARM (ARM64/aarch64), e.g. Apple Silicon, an ARM-based NAS/server, or a Raspberry Pi 4/5 running a 64-bit OS
+- `linux/arm/v7` — 32-bit ARM (ARMv7/armhf), e.g. a Raspberry Pi 2/3 or a Pi running a 32-bit OS
+
+This matches the platforms published by the upstream [Actual Budget server](https://hub.docker.com/r/actualbudget/actual-server), so the sync service runs anywhere the server does. On 32-bit ARM the process is limited to a ~2–3 GB address space, which is ample for syncing but worth noting for very large budgets.
 
 Published tags include:
 

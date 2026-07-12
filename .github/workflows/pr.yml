@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '24.18.0'
+          node-version: '22.23.1'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6
@@ -68,11 +68,11 @@ jobs:
   # Builds the shipped Dockerfile (the e2e job builds Dockerfile.e2e, so the
   # production image is otherwise never exercised in CI) for every published
   # platform, then verifies each image runs unprivileged as uid 1000 and can
-  # load its native better-sqlite3 binary. The arm64 build runs under QEMU
-  # emulation and catches arch-specific build/prebuild regressions pre-merge,
+  # load its native better-sqlite3 binary. The arm64 and arm/v7 builds run under
+  # QEMU emulation and catch arch-specific build/prebuild regressions pre-merge,
   # before the main-branch publish assembles the multi-arch manifest.
   #
-  # Both platforms are exercised in a single job (rather than a matrix) so the
+  # All platforms are exercised in a single job (rather than a matrix) so the
   # status-check context stays named `docker-image` — a matrix would emit
   # `docker-image (linux/amd64)` / `(linux/arm64)` instead and break any branch
   # protection rule that requires the `docker-image` context.
@@ -88,10 +88,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build and verify production image (amd64 + arm64)
+      - name: Build and verify production image (amd64 + arm64 + arm/v7)
         run: |
           set -euo pipefail
-          for platform in linux/amd64 linux/arm64; do
+          for platform in linux/amd64 linux/arm64 linux/arm/v7; do
             echo "::group::Build + verify ${platform}"
             docker buildx build --platform "${platform}" --load -t actual-auto-sync:ci .
 
@@ -103,7 +103,7 @@ jobs:
             fi
 
             # Load the native SQLite binary and run a query — this is the
-            # arch-specific risk (the arm64 prebuild must match the runtime ABI).
+            # arch-specific risk (each arch's prebuild must match the runtime ABI).
             docker run --rm --platform "${platform}" --entrypoint node actual-auto-sync:ci \
               -e "const D=require('better-sqlite3'); const db=new D(':memory:'); if (db.prepare('select 42 as n').get().n !== 42) { process.exit(1); } console.log('better-sqlite3 OK on', process.arch);"
             echo "::endgroup::"

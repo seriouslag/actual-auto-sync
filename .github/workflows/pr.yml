@@ -66,22 +66,45 @@ jobs:
           fail_ci_if_error: false
 
   # Builds the shipped Dockerfile (the e2e job builds Dockerfile.e2e, so the
-  # production image is otherwise never exercised in CI) and verifies it runs
-  # unprivileged as uid 1000.
+  # production image is otherwise never exercised in CI) for every published
+  # platform, then verifies each image runs unprivileged as uid 1000 and can
+  # load its native better-sqlite3 binary. The arm64 build runs under QEMU
+  # emulation and catches arch-specific build/prebuild regressions pre-merge,
+  # before the main-branch publish assembles the multi-arch manifest.
+  #
+  # Both platforms are exercised in a single job (rather than a matrix) so the
+  # status-check context stays named `docker-image` — a matrix would emit
+  # `docker-image (linux/amd64)` / `(linux/arm64)` instead and break any branch
+  # protection rule that requires the `docker-image` context.
   docker-image:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v7
 
-      - name: Build production image
-        run: docker build -t actual-auto-sync:ci .
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: Verify the image runs as non-root (uid 1000)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and verify production image (amd64 + arm64)
         run: |
-          uid="$(docker run --rm --entrypoint sh actual-auto-sync:ci -c 'id -u')"
-          echo "runtime uid: ${uid}"
-          if [ "${uid}" != "1000" ]; then
-            echo "::error::expected the container to run as uid 1000, got ${uid}"
-            exit 1
-          fi
+          set -euo pipefail
+          for platform in linux/amd64 linux/arm64; do
+            echo "::group::Build + verify ${platform}"
+            docker buildx build --platform "${platform}" --load -t actual-auto-sync:ci .
+
+            uid="$(docker run --rm --platform "${platform}" --entrypoint sh actual-auto-sync:ci -c 'id -u')"
+            echo "runtime uid (${platform}): ${uid}"
+            if [ "${uid}" != "1000" ]; then
+              echo "::error::[${platform}] expected the container to run as uid 1000, got ${uid}"
+              exit 1
+            fi
+
+            # Load the native SQLite binary and run a query — this is the
+            # arch-specific risk (the arm64 prebuild must match the runtime ABI).
+            docker run --rm --platform "${platform}" --entrypoint node actual-auto-sync:ci \
+              -e "const D=require('better-sqlite3'); const db=new D(':memory:'); if (db.prepare('select 42 as n').get().n !== 42) { process.exit(1); } console.log('better-sqlite3 OK on', process.arch);"
+            echo "::endgroup::"
+          done

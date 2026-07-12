@@ -96,6 +96,8 @@ services:
 
 ## Running with Docker (pull from Docker Hub)
 
+Images are published as multi-arch manifests for `linux/amd64` and `linux/arm64`, so `docker pull` / `docker run` automatically selects the right build for your host. The `linux/arm64` image requires a 64-bit ARM (ARM64/aarch64) operating system — for example Apple Silicon, an ARM-based NAS/server, or a Raspberry Pi 4/5 running a 64-bit OS. A 32-bit ARM OS (such as 32-bit Raspberry Pi OS) cannot use the `linux/arm64` image.
+
 Published tags include:
 
 - `latest` for the newest successful `main` build

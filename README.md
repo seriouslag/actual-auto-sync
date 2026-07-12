@@ -96,6 +96,8 @@ services:
 
 ## Running with Docker (pull from Docker Hub)
 
+Images are published as multi-arch manifests for `linux/amd64` and `linux/arm64`, so `docker pull` / `docker run` automatically selects the right build for your host (including ARM devices such as a Raspberry Pi 4/5, Apple Silicon, or ARM-based NAS/servers).
+
 Published tags include:
 
 - `latest` for the newest successful `main` build

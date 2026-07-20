@@ -17,6 +17,9 @@ jobs:
       - name: Generate and publish repository stats
         uses: actions/github-script@v9
         with:
+          # Listing stargazers is restricted to repo admins/collaborators as of
+          # July 2026; github-actions[bot] is neither, so a PAT is required.
+          github-token: ${{ secrets.REPO_STATS_TOKEN }}
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;

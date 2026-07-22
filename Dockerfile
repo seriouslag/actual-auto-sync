@@ -1,5 +1,5 @@
 # Build stage
-FROM node:22.23.1-slim AS builder
+FROM node:24.18.0-slim AS builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 

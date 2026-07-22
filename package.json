@@ -31,7 +31,7 @@
     "@actual-app/api": "^26.7.0",
     "@actual-app/crdt": "^3.1.1",
     "@t3-oss/env-core": "^0.13.11",
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "^13.0.1",
     "cron": "^4.4.0",
     "cronstrue": "^3.24.0",
     "dotenv": "^17.4.2",
@@ -48,7 +48,7 @@
     "oxfmt": "^0.58.0",
     "oxlint": "^1.73.0",
     "ts-node": "^10.9.2",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "packageManager": "pnpm@11.10.0"

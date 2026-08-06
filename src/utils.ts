@@ -2,14 +2,7 @@ import type { Dirent } from 'node:fs';
 import { mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import {
-  downloadBudget,
-  init,
-  internal,
-  runBankSync,
-  shutdown,
-  sync as syncBudget,
-} from '@actual-app/api';
+import * as api from '@actual-app/api';
 import cronstrue from 'cronstrue';
 
 import { env } from './env.js';
@@ -32,10 +25,17 @@ interface AccountBalanceSyncInput {
   readFailed: boolean;
 }
 
+function getApi() {
+  if (!api.internal) {
+    throw new Error('API not initialized. Call init() first.');
+  }
+  return api.internal;
+}
+
 async function getAccountsForBalanceSync(): Promise<AccountBalanceSyncInput> {
   try {
     return {
-      accounts: (await internal.db.getAccounts()) as AccountBalanceRow[],
+      accounts: (await getApi().db.getAccounts()) as AccountBalanceRow[],
       readFailed: false,
     };
   } catch (error) {
@@ -49,7 +49,7 @@ async function getAccountsForBalanceSync(): Promise<AccountBalanceSyncInput> {
 
 async function syncAccountBalanceToCRDT(account: AccountBalanceRow): Promise<boolean> {
   try {
-    await internal.db.update('accounts', {
+    await getApi().db.update('accounts', {
       id: account.id,
       balance_current: account.balance_current,
     });
@@ -85,7 +85,7 @@ export async function syncAccountBalancesToCRDT() {
 
 async function syncBankAccounts() {
   logger.info('Syncing all accounts...');
-  await runBankSync();
+  await api.runBankSync();
   logger.info('All accounts synced.');
   logger.info('Syncing account balances through CRDT...');
   const syncedBalances = await syncAccountBalancesToCRDT();
@@ -98,7 +98,7 @@ async function syncBankAccounts() {
 
 async function syncBudgetToServer() {
   logger.info('Syncing budget to server...');
-  await syncBudget();
+  await api.sync();
   logger.info('Budget synced to server successfully.');
 }
 
@@ -115,7 +115,7 @@ async function createDataDirAndInitApi() {
     await mkdir(ACTUAL_DATA_DIR, { recursive: true });
     logger.info('Data directory created successfully.');
     logger.info('Initializing Actual API...');
-    await init({
+    await api.init({
       dataDir: ACTUAL_DATA_DIR,
       serverURL: env.ACTUAL_SERVER_URL,
       password: env.ACTUAL_SERVER_PASSWORD,
@@ -186,7 +186,7 @@ async function removeLocalBudgetCacheBySyncId(syncId: string) {
 async function resetApiSessionForRetry(syncId: string) {
   logger.info(`Resetting Actual API session before retrying budget ${syncId}...`);
   try {
-    await shutdown();
+    await api.shutdown();
   } catch (error) {
     logger.error({ err: error, budgetId: syncId }, 'Error shutting down API during retry reset.');
   }
@@ -206,9 +206,9 @@ async function downloadAndSyncBudget(budgetId: string, index: number) {
         `Downloading budget ${budgetId} (attempt ${attempt}/${MAX_BUDGET_SYNC_ATTEMPTS})...`,
       );
       if (password) {
-        await downloadBudget(budgetId, { password });
+        await api.downloadBudget(budgetId, { password });
       } else {
-        await downloadBudget(budgetId);
+        await api.downloadBudget(budgetId);
       }
       logger.info(`Budget ${budgetId} downloaded successfully.`);
 
@@ -290,7 +290,7 @@ async function runSyncCycle() {
 
 async function shutdownApi() {
   logger.info('Shutting down...');
-  await shutdown();
+  await api.shutdown();
   logger.info('Shutdown complete.');
 }
 

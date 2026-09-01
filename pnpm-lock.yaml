@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@actual-app/api':
-        specifier: ^26.8.1
-        version: 26.8.1
+        specifier: ^26.9.0
+        version: 26.9.0
       '@actual-app/crdt':
         specifier: ^3.1.1
         version: 3.1.1
@@ -72,12 +72,12 @@ importers:
 
 packages:
 
-  '@actual-app/api@26.8.1':
-    resolution: {integrity: sha512-FpOjTdbXEUlph1pElNANT/y2TwNn3vGbR/4SRRtic6x2kZIrrKZBCx4+X5/GobVNLPGJX66p6tVcki41nqpPZA==}
+  '@actual-app/api@26.9.0':
+    resolution: {integrity: sha512-jlDN/RWOqa5ToIM3k4ShpwMIh9sCMUqYYsS5IvAIykKscGkHdmJ+0YqcLhJrG3qOkWplArp8TNknJWASUMR5AA==}
     engines: {node: '>=20'}
 
-  '@actual-app/core@26.8.1':
-    resolution: {integrity: sha512-1uvhHqZ4QeBeOkEzLr+OAvRKQWSZr1E+oO32V2v4HgqwUF1MUkHtUZqEaf7WQswaF8hNNTI0GeL2goVbTJu6xg==}
+  '@actual-app/core@26.9.0':
+    resolution: {integrity: sha512-Nn6rxZQRoCYIaHtc0ZSAinA7RgYV24QuHW+XE3aJWBu9qcttjSUIBMQrBo+W960C++FcityvkIi3Yj1XIUGy+g==}
 
   '@actual-app/crdt@3.1.1':
     resolution: {integrity: sha512-zuUDbA12dYF6QInFFDdAbWcl4stDL9IWEL6HPzqlmW/T5nNNYKqclOAMCXkXx1e8TJ3jvhHnwl4/m6xzeDEZpw==}
@@ -1551,15 +1551,15 @@ packages:
 
 snapshots:
 
-  '@actual-app/api@26.8.1':
+  '@actual-app/api@26.9.0':
     dependencies:
-      '@actual-app/core': 26.8.1
+      '@actual-app/core': 26.9.0
       '@actual-app/crdt': 3.1.1
       better-sqlite3: 12.11.1
       compare-versions: 6.1.1
       uuid: 14.0.2
 
-  '@actual-app/core@26.8.1':
+  '@actual-app/core@26.9.0':
     dependencies:
       '@jlongster/sql.js': 1.6.7
       '@rschedule/core': 1.5.0

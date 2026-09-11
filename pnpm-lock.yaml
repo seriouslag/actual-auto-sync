@@ -12,8 +12,8 @@ importers:
         specifier: ^26.9.0
         version: 26.9.0
       '@actual-app/crdt':
-        specifier: ^3.1.1
-        version: 3.1.1
+        specifier: ^3.1.2
+        version: 3.1.2
       '@t3-oss/env-core':
         specifier: ^0.13.11
         version: 0.13.11(typescript@6.0.3)(zod@4.5.4)
@@ -81,6 +81,9 @@ packages:
 
   '@actual-app/crdt@3.1.1':
     resolution: {integrity: sha512-zuUDbA12dYF6QInFFDdAbWcl4stDL9IWEL6HPzqlmW/T5nNNYKqclOAMCXkXx1e8TJ3jvhHnwl4/m6xzeDEZpw==}
+
+  '@actual-app/crdt@3.1.2':
+    resolution: {integrity: sha512-YbLUB3HATyq3RtRZQcIAApqCAaL0r/RmJ6zlwi5qtHCWnqOfEO9GTxOnhxUW/SPNIn9y2wIP6IrUQu90kaIZLA==}
 
   '@babel/helper-string-parser@7.29.7':
     resolution: {integrity: sha512-Pb5ijPrZ89GDH8223L4UP8i6QApWxs04RbPQJTeWDV0/keR2E36MeKnyr6LYmUUvqRRI+Iv87SuF1W6ErINzYw==}
@@ -1579,6 +1582,12 @@ snapshots:
       xml2js: 0.6.2
 
   '@actual-app/crdt@3.1.1':
+    dependencies:
+      '@bufbuild/protobuf': 2.14.1
+      murmurhash: 2.0.1
+      uuid: 14.0.2
+
+  '@actual-app/crdt@3.1.2':
     dependencies:
       '@bufbuild/protobuf': 2.14.1
       murmurhash: 2.0.1

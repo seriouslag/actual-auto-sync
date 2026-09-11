@@ -33,23 +33,23 @@
     "@t3-oss/env-core": "^0.13.11",
     "better-sqlite3": "^12.11.1",
     "cron": "^4.4.0",
-    "cronstrue": "^3.24.0",
+    "cronstrue": "^3.26.0",
     "dotenv": "^17.4.2",
     "luxon": "^3.7.2",
     "pino": "^10.3.1",
-    "zod": "^4.4.3"
+    "zod": "^4.6.2"
   },
   "devDependencies": {
-    "@types/luxon": "^3.7.2",
-    "@types/node": "^26.1.0",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@types/luxon": "^3.7.5",
+    "@types/node": "^26.5.1",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint-plugin-unused-imports": "^4.4.1",
-    "lefthook": "^2.1.9",
-    "oxfmt": "^0.58.0",
-    "oxlint": "^1.73.0",
+    "lefthook": "^2.1.12",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "packageManager": "pnpm@11.10.0"
 }

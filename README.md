@@ -13,6 +13,7 @@ It connects to your Actual Budget server with the official [`@actual-app/api`](h
 - [Features](#features)
 - [Configuration](#configuration)
   - [Environment variables](#environment-variables)
+  - [Notifications](#notifications)
   - [Environment variables from files (Docker secrets)](#environment-variables-from-files-docker-secrets)
   - [If using with OIDC auth provider](#if-using-with-oidc-auth-provider-in-actual-budget-server)
 - [Running with Docker (pull from Docker Hub)](#running-with-docker-pull-from-docker-hub)
@@ -30,6 +31,7 @@ It connects to your Actual Budget server with the official [`@actual-app/api`](h
 - Optional per-account sync mode that skips failing accounts instead of aborting the whole budget
 - Reads configuration from the environment or from files (Docker secrets) via the `_FILE` convention
 - Ships as a Docker image that runs as a non-root user and supports a read-only root filesystem
+- Optional notifications for sync failures and new uncategorized transactions, compatible with Apprise API
 - Configurable logging levels for monitoring and debugging
 - Uses the official Actual Budget API for reliable synchronization
 
@@ -37,28 +39,55 @@ It connects to your Actual Budget server with the official [`@actual-app/api`](h
 
 ### Environment variables
 
-| Variable                 | Required | Default                                            | Description                                                                                                                 |
-| ------------------------ | -------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `ACTUAL_SERVER_URL`      | Yes      | —                                                  | URL of your Actual Budget server.                                                                                           |
-| `ACTUAL_SERVER_PASSWORD` | Yes      | —                                                  | Password for your Actual Budget server.                                                                                     |
-| `ACTUAL_BUDGET_SYNC_IDS` | Yes      | —                                                  | Comma-separated list of budget sync IDs to sync (e.g. `1cf9fbf9-...,030d7094-...`).                                         |
-| `ENCRYPTION_PASSWORDS`   | No       | _(empty)_                                          | Comma-separated encryption passwords, positionally matched to `ACTUAL_BUDGET_SYNC_IDS`. See note below.                     |
-| `CRON_SCHEDULE`          | No       | `0 1 * * *` (daily at 1am)                         | Cron expression for scheduling syncs.                                                                                       |
-| `TIMEZONE`               | No       | `Etc/UTC` (`America/New_York` in the Docker image) | IANA time zone applied to `CRON_SCHEDULE` (e.g. `America/New_York`).                                                        |
-| `LOG_LEVEL`              | No       | `info`                                             | One of `debug`, `info`, `warn`, `error`. At `warn`/`error` the verbose console output from `@actual-app/api` is suppressed. |
-| `RUN_ON_START`           | No       | `false`                                            | Run a sync immediately on startup, in addition to the schedule. See note below.                                             |
-| `SKIP_FAILED_ACCOUNTS`   | No       | `false`                                            | Sync each account individually and skip failing ones instead of aborting the budget. See note below.                        |
-| `ACTUAL_DATA_DIR`        | No       | `./data` (`/data` in the Docker image)             | Directory where budget data and caches are written. Point at a mounted/tmpfs path to run with a read-only root filesystem.  |
+| Variable                      | Required | Default                                            | Description                                                                                                                 |
+| ----------------------------- | -------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `ACTUAL_SERVER_URL`           | Yes      | —                                                  | URL of your Actual Budget server.                                                                                           |
+| `ACTUAL_SERVER_PASSWORD`      | Yes      | —                                                  | Password for your Actual Budget server.                                                                                     |
+| `ACTUAL_BUDGET_SYNC_IDS`      | Yes      | —                                                  | Comma-separated list of budget sync IDs to sync (e.g. `1cf9fbf9-...,030d7094-...`).                                         |
+| `ENCRYPTION_PASSWORDS`        | No       | _(empty)_                                          | Comma-separated encryption passwords, positionally matched to `ACTUAL_BUDGET_SYNC_IDS`. See note below.                     |
+| `CRON_SCHEDULE`               | No       | `0 1 * * *` (daily at 1am)                         | Cron expression for scheduling syncs.                                                                                       |
+| `TIMEZONE`                    | No       | `Etc/UTC` (`America/New_York` in the Docker image) | IANA time zone applied to `CRON_SCHEDULE` (e.g. `America/New_York`).                                                        |
+| `LOG_LEVEL`                   | No       | `info`                                             | One of `debug`, `info`, `warn`, `error`. At `warn`/`error` the verbose console output from `@actual-app/api` is suppressed. |
+| `RUN_ON_START`                | No       | `false`                                            | Run a sync immediately on startup, in addition to the schedule. See note below.                                             |
+| `SKIP_FAILED_ACCOUNTS`        | No       | `false`                                            | Sync each account individually and skip failing ones instead of aborting the budget. See note below.                        |
+| `ACTUAL_DATA_DIR`             | No       | `./data` (`/data` in the Docker image)             | Directory where budget data and caches are written. Point at a mounted/tmpfs path to run with a read-only root filesystem.  |
+| `NOTIFICATION_URL`            | No       | _(unset)_                                          | HTTP(S) endpoint accepting Apprise JSON. Notifications are disabled unless set.                                             |
+| `NOTIFY_ON_FAILURE`           | No       | `true`                                             | Notify on final sync failures or warnings, including skipped accounts and balance errors.                                   |
+| `NOTIFY_ON_SUCCESS`           | No       | `false`                                            | Notify on every fully successful sync run.                                                                                  |
+| `NOTIFY_ON_NEW_UNCATEGORIZED` | No       | `true`                                             | Notify when a run imports new transactions that still need categories.                                                      |
+| `NOTIFICATION_TIMEOUT_MS`     | No       | `10000`                                            | Delivery timeout in milliseconds (1–300000). Delivery failures are logged without retrying bank sync.                       |
 
 You can find your budget sync IDs in the Actual Budget app > _Selected Budget_ > Settings > Advanced Settings > Sync ID.
 
-Boolean variables (`RUN_ON_START`, `SKIP_FAILED_ACCOUNTS`) accept `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off`.
+Boolean variables (`RUN_ON_START`, `SKIP_FAILED_ACCOUNTS`, `NOTIFY_ON_FAILURE`, `NOTIFY_ON_SUCCESS`, `NOTIFY_ON_NEW_UNCATEGORIZED`) accept `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off`.
 
 **`ENCRYPTION_PASSWORDS`** — Leave empty if you don't encrypt your budgets. The position of each password matches the position of the budget in `ACTUAL_BUDGET_SYNC_IDS`. To skip a budget (no password), leave its slot empty by placing a comma in that position, e.g. `password1,,password3`.
 
 **`RUN_ON_START`** — When set to `true` you may get a notice email from SimpleFIN (if you use that service), as they expect only one bank sync per day.
 
 **`SKIP_FAILED_ACCOUNTS`** — When `false`, all accounts sync in a single request and any one failure aborts the budget's sync. When `true`, each account syncs individually and a failing account is logged and skipped so the rest still sync. Note: per-account syncing can result in more requests to your bank aggregator (e.g. SimpleFIN), which may matter for rate limits.
+
+### Notifications
+
+Set `NOTIFICATION_URL` to an HTTP endpoint that accepts Apprise-compatible JSON:
+
+```dotenv
+NOTIFICATION_URL=http://apprise:8000/notify/actual-auto-sync
+NOTIFY_ON_FAILURE=true
+NOTIFY_ON_SUCCESS=false
+NOTIFY_ON_NEW_UNCATEGORIZED=true
+NOTIFICATION_TIMEOUT_MS=10000
+```
+
+For [Apprise API](https://github.com/caronc/apprise-api), create a saved configuration named `actual-auto-sync` in its web UI with your desired destinations, then point the sync service at `/notify/actual-auto-sync`. The Apprise service must be reachable from the sync container; `apprise` in this example is its Docker Compose service name. Destination URLs such as `discord://...` or `mailto://...` belong in Apprise, while `NOTIFICATION_URL` is the HTTP API endpoint. No Apprise or Python installation is needed in the sync container.
+
+By default, alerts are sent for failures and new uncategorized transactions. Set `NOTIFY_ON_SUCCESS=true` to also receive routine success alerts. Each run sends at most one summary after all budgets, retries, and API shutdown finish. Final failures use `type: failure`; skipped accounts, balance persistence errors, or transaction-query errors use `type: warning`. Successful runs use `type: success`. A recovered retry alone does not trigger a failure alert.
+
+New-transaction alerts compare bank import identities before and after each budget sync. Pending bank transactions without a bank-provided ID use their ledger identity; becoming booked does not alert again if the ledger identity is retained. Existing uncategorized transactions do not cause repeated alerts, and a retry within the same run retains the original baseline. Categorized transactions, transfers, and off-budget accounts are excluded. An imported split counts once if any split item still needs a category. Transactions imported on a run that ultimately fails to upload that budget are not reported as successfully synced new transactions.
+
+The endpoint receives a POST with `title`, `body`, `type`, and `format: text`. Summaries include budget sync IDs, failed account names, and transaction counts; they omit transaction amounts, payees, notes, raw bank data, and raw error messages. A count is marked unavailable when inspection is disabled or unsuccessful. Use the service logs for error details. A delivery failure or timeout is logged and never retries the bank sync. Delivery is best-effort: missed notifications are not queued for a later run.
+
+All notification settings support the `_FILE` convention below. For example, use `NOTIFICATION_URL_FILE` to load an endpoint from a Docker secret. This first integration supports endpoints that accept POSTs without additional authentication headers; for Apprise, configure an appropriately accessible saved configuration or use a proxy that supplies authentication.
 
 ### Environment variables from files (Docker secrets)
 

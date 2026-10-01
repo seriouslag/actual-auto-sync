@@ -14,6 +14,12 @@ import cronstrue from 'cronstrue';
 
 import { env } from './env.js';
 import { isVerbose, logger } from './logger.js';
+import { notifySyncResult, type BudgetSyncResult, type SyncResult } from './notifications.js';
+import {
+  countNewUncategorizedTransactions,
+  readTransactionSnapshot,
+  type TransactionSnapshotRow,
+} from './transaction-snapshot.js';
 
 // Configurable so the writable data dir can live on a mounted/tmpfs path,
 // allowing the container to run with a read-only root filesystem.
@@ -21,6 +27,7 @@ const ACTUAL_DATA_DIR = env.ACTUAL_DATA_DIR;
 // Keep retries small to avoid long loops while still healing transient API/session issues.
 const MAX_BUDGET_SYNC_ATTEMPTS = 2;
 
+/** Formats a cron expression as lowercase text for the scheduling log. */
 export function formatCronSchedule(schedule: string) {
   return cronstrue.toString(schedule).toLowerCase();
 }
@@ -59,6 +66,7 @@ interface AccountBalanceSyncInput {
   readFailed: boolean;
 }
 
+/** Reads balance rows and marks read failures so they remain visible in the sync result. */
 async function getAccountsForBalanceSync(api: BalanceSyncApi): Promise<AccountBalanceSyncInput> {
   try {
     return {
@@ -74,6 +82,7 @@ async function getAccountsForBalanceSync(api: BalanceSyncApi): Promise<AccountBa
   }
 }
 
+/** Persists one account balance through CRDT, logging and returning false on write failure. */
 async function syncAccountBalanceToCRDT(
   api: BalanceSyncApi,
   account: AccountBalanceRow,
@@ -137,10 +146,12 @@ async function runBankSyncSkippingFailures(): Promise<string[]> {
   return failedAccounts;
 }
 
+/** Runs bank sync and balance persistence, returning skipped accounts and the balance-write outcome. */
 async function syncBankAccounts(api: BalanceSyncApi) {
   logger.info('Syncing all accounts...');
+  let failedAccounts: string[] = [];
   if (env.SKIP_FAILED_ACCOUNTS) {
-    const failedAccounts = await runBankSyncSkippingFailures();
+    failedAccounts = await runBankSyncSkippingFailures();
     if (failedAccounts.length > 0) {
       logger.warn(
         { failedAccounts },
@@ -158,8 +169,10 @@ async function syncBankAccounts(api: BalanceSyncApi) {
   } else {
     logger.info('Account balances sync through CRDT completed with errors.');
   }
+  return { failedAccounts, syncedBalances };
 }
 
+/** Pushes the loaded budget to the server, allowing upload failures to trigger the budget retry. */
 async function syncBudgetToServer() {
   logger.info('Syncing budget to server...');
   await syncBudget();
@@ -167,12 +180,21 @@ async function syncBudgetToServer() {
 }
 
 /** Runs bank sync, then pushes synced balance state to the server for the loaded budget. */
-export async function syncAllAccounts(api: BalanceSyncApi) {
+export async function syncAllAccounts(api: BalanceSyncApi, budgetResult?: BudgetSyncResult) {
   // Runs against the currently loaded budget in the Actual API session.
-  await syncBankAccounts(api);
+  const result = await syncBankAccounts(api);
+  // Preserve bank/balance outcomes even if the subsequent upload throws.
+  if (budgetResult) {
+    budgetResult.failedAccounts = result.failedAccounts;
+    budgetResult.warnings = result.syncedBalances
+      ? []
+      : ['Account balances could not be fully persisted. Check service logs.'];
+  }
   await syncBudgetToServer();
+  return result;
 }
 
+/** Creates the writable cache directory and stores the initialized Actual API handle. */
 async function createDataDirAndInitApi() {
   try {
     logger.info(`Creating data directory ${ACTUAL_DATA_DIR}`);
@@ -262,11 +284,28 @@ async function resetApiSessionForRetry(syncId: string) {
 }
 
 /** Executes one budget sync with bounded retries and optional encryption password by index. */
-async function downloadAndSyncBudget(budgetId: string, index: number) {
+async function downloadAndSyncBudget(
+  budgetId: string,
+  index: number,
+  budgetResult: BudgetSyncResult,
+): Promise<BudgetSyncResult> {
   const password = env.ENCRYPTION_PASSWORDS[index];
+  const inspectTransactions = !!env.NOTIFICATION_URL && env.NOTIFY_ON_NEW_UNCATEGORIZED;
+  // Keep the first baseline across retries, including a cache reset after a failed push.
+  let before: TransactionSnapshotRow[] | null | undefined;
+
+  /** Reads classification data for the loaded budget; query failures make the transaction count unavailable. */
+  async function snapshot(): Promise<TransactionSnapshotRow[] | null> {
+    try {
+      return await readTransactionSnapshot();
+    } catch (error) {
+      logger.warn({ err: error, budgetId }, 'Unable to inspect transactions for notifications.');
+      return null;
+    }
+  }
 
   // Each attempt runs full download -> bank sync -> push to server for one budget.
-  for (let attempt = 1; attempt <= MAX_BUDGET_SYNC_ATTEMPTS; attempt++) {
+  for (let attempt = 1; ; attempt++) {
     try {
       logger.info(
         `Downloading budget ${budgetId} (attempt ${attempt}/${MAX_BUDGET_SYNC_ATTEMPTS})...`,
@@ -279,12 +318,27 @@ async function downloadAndSyncBudget(budgetId: string, index: number) {
       logger.info(`Budget ${budgetId} downloaded successfully.`);
 
       logger.info(`Syncing accounts for budget ${budgetId}...`);
-      await syncAllAccounts(getActualApi());
+      if (inspectTransactions && before === undefined) {
+        before = await snapshot();
+      }
+      await syncAllAccounts(getActualApi(), budgetResult);
+      const after = inspectTransactions && before !== null ? await snapshot() : null;
+      const { failedAccounts, warnings } = budgetResult;
+      if (inspectTransactions && (before === null || after === null)) {
+        warnings.push('Unable to inspect new uncategorized transactions. Check service logs.');
+      }
       logger.info(`Accounts synced successfully for budget ${budgetId}.`);
-      return;
+      return {
+        budgetId,
+        status: failedAccounts.length > 0 || warnings.length > 0 ? 'partial' : 'success',
+        failedAccounts,
+        warnings,
+        newUncategorizedTransactions:
+          before && after ? countNewUncategorizedTransactions(before, after) : null,
+      };
     } catch (error) {
       logger.error({ err: error, budgetId, attempt }, `Error syncing budget ${budgetId}`);
-      if (attempt === MAX_BUDGET_SYNC_ATTEMPTS) {
+      if (attempt >= MAX_BUDGET_SYNC_ATTEMPTS) {
         throw error;
       }
       logger.warn(
@@ -297,16 +351,25 @@ async function downloadAndSyncBudget(budgetId: string, index: number) {
 }
 
 /** Sequentially syncs all configured budget sync IDs and throws a summary on partial failure. */
-async function downloadConfiguredBudgets() {
+async function downloadConfiguredBudgets(result: SyncResult) {
   const failedBudgets: string[] = [];
 
   // Process budgets sequentially to avoid overlapping Actual API state transitions.
   for (const [index, budgetId] of env.ACTUAL_BUDGET_SYNC_IDS.entries()) {
+    const budgetResult: BudgetSyncResult = {
+      budgetId,
+      status: 'failure',
+      failedAccounts: [],
+      warnings: [],
+      newUncategorizedTransactions: null,
+    };
     try {
-      await downloadAndSyncBudget(budgetId, index);
+      result.budgets.push(await downloadAndSyncBudget(budgetId, index, budgetResult));
     } catch (error) {
       // Keep going so one failing budget does not block the rest.
       failedBudgets.push(budgetId);
+      budgetResult.warnings.push('Budget sync failed after retries. Check service logs.');
+      result.budgets.push(budgetResult);
       logger.error({ err: error }, `Failed to sync budget ${budgetId} after retries.`);
     }
   }
@@ -341,19 +404,26 @@ export async function getSyncIdMaps(dataDir: string) {
   }
 }
 
-async function runSyncCycle() {
+/** Initializes the API, records each budget outcome, and captures sanitized cycle-level failures. */
+async function runSyncCycle(result: SyncResult) {
+  let stage = 'Actual API initialization';
   try {
     await createDataDirAndInitApi();
 
+    stage = 'Sync setup';
     logger.info(`Scheduling sync to run ${formatCronSchedule(env.CRON_SCHEDULE)}...`);
     // Main sync work for one cron tick.
-    await downloadConfiguredBudgets();
+    await downloadConfiguredBudgets(result);
   } catch (error) {
     logger.error({ err: error }, 'Error starting the service.');
     logger.warn('Sync cycle did not complete successfully.');
+    if (!result.budgets.some((budget) => budget.status === 'failure')) {
+      result.errors.push(`${stage} failed. Check service logs.`);
+    }
   }
 }
 
+/** Shuts down the Actual API and clears the handle after successful shutdown. */
 async function shutdownApi() {
   logger.info('Shutting down...');
   await shutdown();
@@ -364,13 +434,16 @@ async function shutdownApi() {
 /** Entry point for one service run: init, per-budget sync cycle, and guaranteed shutdown. */
 export const sync = async () => {
   logger.info('Starting service...');
+  const result: SyncResult = { budgets: [], errors: [] };
   try {
-    await runSyncCycle();
+    await runSyncCycle(result);
   } finally {
     try {
       await shutdownApi();
     } catch (error) {
       logger.error({ err: error }, 'Error shutting down the service.');
+      result.errors.push('Actual API shutdown failed. Check service logs.');
     }
+    await notifySyncResult(result);
   }
 };

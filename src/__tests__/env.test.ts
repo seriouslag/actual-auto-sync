@@ -2,6 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   actualDataDirSchema,
+  notificationUrlSchema,
+  notificationTimeoutSchema,
+  notifyOnFailureSchema,
+  notifyOnSuccessSchema,
+  notifyOnNewUncategorizedSchema,
   budgetIdSchema,
   cronScheduleSchema,
   encryptionPasswordSchema,
@@ -342,5 +347,31 @@ describe('Environment Configuration', () => {
       );
       expect(createEnv).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('Notification configuration', () => {
+  it('disables notifications unless an HTTP endpoint is supplied', () => {
+    expect(notificationUrlSchema.parse(undefined)).toBeUndefined();
+    expect(notificationUrlSchema.parse(' http://apprise:8000/notify/budget ')).toBe(
+      'http://apprise:8000/notify/budget',
+    );
+    expect(() => notificationUrlSchema.parse('mailto://user@example.com')).toThrow();
+    expect(() => notificationUrlSchema.parse('invalid')).toThrow();
+  });
+  it('defaults to failures and new uncategorized transactions, with ordinary success opt-in', () => {
+    expect(notifyOnFailureSchema.parse(undefined)).toBe(true);
+    expect(notifyOnNewUncategorizedSchema.parse(undefined)).toBe(true);
+    expect(notifyOnSuccessSchema.parse(undefined)).toBe(false);
+    expect(notifyOnFailureSchema.parse('off')).toBe(false);
+    expect(notifyOnNewUncategorizedSchema.parse('0')).toBe(false);
+    expect(notifyOnSuccessSchema.parse('yes')).toBe(true);
+  });
+  it('validates a bounded positive delivery timeout', () => {
+    expect(notificationTimeoutSchema.parse(undefined)).toBe(10_000);
+    expect(notificationTimeoutSchema.parse('5000')).toBe(5000);
+    for (const value of ['0', '-1', '1.5', 'invalid', '300001']) {
+      expect(() => notificationTimeoutSchema.parse(value)).toThrow();
+    }
   });
 });

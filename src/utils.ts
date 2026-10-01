@@ -27,6 +27,7 @@ const ACTUAL_DATA_DIR = env.ACTUAL_DATA_DIR;
 // Keep retries small to avoid long loops while still healing transient API/session issues.
 const MAX_BUDGET_SYNC_ATTEMPTS = 2;
 
+/** Formats a cron expression as lowercase text for the scheduling log. */
 export function formatCronSchedule(schedule: string) {
   return cronstrue.toString(schedule).toLowerCase();
 }
@@ -65,6 +66,7 @@ interface AccountBalanceSyncInput {
   readFailed: boolean;
 }
 
+/** Reads balance rows and marks read failures so they remain visible in the sync result. */
 async function getAccountsForBalanceSync(api: BalanceSyncApi): Promise<AccountBalanceSyncInput> {
   try {
     return {
@@ -80,6 +82,7 @@ async function getAccountsForBalanceSync(api: BalanceSyncApi): Promise<AccountBa
   }
 }
 
+/** Persists one account balance through CRDT, logging and returning false on write failure. */
 async function syncAccountBalanceToCRDT(
   api: BalanceSyncApi,
   account: AccountBalanceRow,
@@ -143,6 +146,7 @@ async function runBankSyncSkippingFailures(): Promise<string[]> {
   return failedAccounts;
 }
 
+/** Runs bank sync and balance persistence, returning skipped accounts and the balance-write outcome. */
 async function syncBankAccounts(api: BalanceSyncApi) {
   logger.info('Syncing all accounts...');
   let failedAccounts: string[] = [];
@@ -168,6 +172,7 @@ async function syncBankAccounts(api: BalanceSyncApi) {
   return { failedAccounts, syncedBalances };
 }
 
+/** Pushes the loaded budget to the server, allowing upload failures to trigger the budget retry. */
 async function syncBudgetToServer() {
   logger.info('Syncing budget to server...');
   await syncBudget();
@@ -189,6 +194,7 @@ export async function syncAllAccounts(api: BalanceSyncApi, budgetResult?: Budget
   return result;
 }
 
+/** Creates the writable cache directory and stores the initialized Actual API handle. */
 async function createDataDirAndInitApi() {
   try {
     logger.info(`Creating data directory ${ACTUAL_DATA_DIR}`);
@@ -288,6 +294,7 @@ async function downloadAndSyncBudget(
   // Keep the first baseline across retries, including a cache reset after a failed push.
   let before: TransactionSnapshotRow[] | null | undefined;
 
+  /** Reads classification data for the loaded budget; query failures make the transaction count unavailable. */
   async function snapshot(): Promise<TransactionSnapshotRow[] | null> {
     try {
       return await readTransactionSnapshot();
@@ -298,7 +305,7 @@ async function downloadAndSyncBudget(
   }
 
   // Each attempt runs full download -> bank sync -> push to server for one budget.
-  for (let attempt = 1; attempt <= MAX_BUDGET_SYNC_ATTEMPTS; attempt++) {
+  for (let attempt = 1; ; attempt++) {
     try {
       logger.info(
         `Downloading budget ${budgetId} (attempt ${attempt}/${MAX_BUDGET_SYNC_ATTEMPTS})...`,
@@ -331,7 +338,7 @@ async function downloadAndSyncBudget(
       };
     } catch (error) {
       logger.error({ err: error, budgetId, attempt }, `Error syncing budget ${budgetId}`);
-      if (attempt === MAX_BUDGET_SYNC_ATTEMPTS) {
+      if (attempt >= MAX_BUDGET_SYNC_ATTEMPTS) {
         throw error;
       }
       logger.warn(
@@ -341,7 +348,6 @@ async function downloadAndSyncBudget(
       await resetApiSessionForRetry(budgetId);
     }
   }
-  throw new Error(`Budget ${budgetId} did not complete sync.`);
 }
 
 /** Sequentially syncs all configured budget sync IDs and throws a summary on partial failure. */
@@ -398,6 +404,7 @@ export async function getSyncIdMaps(dataDir: string) {
   }
 }
 
+/** Initializes the API, records each budget outcome, and captures sanitized cycle-level failures. */
 async function runSyncCycle(result: SyncResult) {
   let stage = 'Actual API initialization';
   try {
@@ -416,6 +423,7 @@ async function runSyncCycle(result: SyncResult) {
   }
 }
 
+/** Shuts down the Actual API and clears the handle after successful shutdown. */
 async function shutdownApi() {
   logger.info('Shutting down...');
   await shutdown();

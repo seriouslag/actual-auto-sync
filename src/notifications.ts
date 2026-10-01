@@ -21,6 +21,7 @@ const titles: Record<NotificationType, string> = {
   success: 'Actual Auto Sync completed',
 };
 
+/** Builds a text summary using only counts, budget IDs, account labels, and sanitized warnings. */
 function notificationPayload(result: SyncResult, type: NotificationType, newTransactions: number) {
   const title = titles[type];
   const lines = [title];
@@ -76,6 +77,7 @@ export async function notifySyncResult(result: SyncResult): Promise<void> {
   );
 }
 
+/** Posts one summary with a bounded timeout; delivery errors are logged without exposing the endpoint. */
 async function deliverNotification(
   url: string,
   payload: ReturnType<typeof notificationPayload>,

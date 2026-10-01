@@ -45,6 +45,7 @@ export async function readTransactionSnapshot(): Promise<TransactionSnapshotRow[
   }));
 }
 
+/** Returns account-scoped bank and ledger identities; manual entries without bank data have no keys. */
 function importKeys(transaction: TransactionSnapshotRow): string[] {
   if (!transaction.imported_id && !transaction.bankSynced) {
     return [];

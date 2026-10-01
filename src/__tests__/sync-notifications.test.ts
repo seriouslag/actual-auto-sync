@@ -11,6 +11,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { env } from '../env.js';
+import { readTransactionSnapshot } from '../transaction-snapshot.js';
 import { sync } from '../utils.js';
 
 vi.mock('@actual-app/api', async (importOriginal) => {
@@ -184,6 +185,25 @@ describe('sync notifications', () => {
     expect(payload().body).toContain('initialization');
     expect(payload().body).toContain('shutdown');
     expect(payload().body).not.toContain('secret password');
+  });
+
+  it.each([undefined, null, {}, { data: null }, { data: {} }])(
+    'rejects malformed transaction query responses: %j',
+    async (response) => {
+      vi.mocked(aqlQuery).mockResolvedValue(response);
+      await expect(readTransactionSnapshot()).rejects.toThrow(TypeError);
+    },
+  );
+
+  it('marks malformed transaction results unavailable without retrying bank sync', async () => {
+    vi.mocked(aqlQuery).mockResolvedValue({ data: null });
+    await sync();
+    expect(runBankSync).toHaveBeenCalledTimes(2);
+    expect(syncBudget).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(payload().type).toBe('warning');
+    expect(payload().body).toContain('count unavailable');
+    expect(payload().body).not.toContain('0 new uncategorized');
   });
 
   it('does not let transaction scanning failures abort bank sync', async () => {

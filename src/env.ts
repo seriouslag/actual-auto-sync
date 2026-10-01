@@ -43,11 +43,11 @@ export const cronScheduleSchema = z.string().trim().min(9).default('0 1 * * *');
  * Builds a schema that parses common truthy/falsy string representations (and
  * real booleans) into a boolean, defaulting to `false` for unknown values.
  */
-function flexibleBooleanSchema() {
+function flexibleBooleanSchema(defaultValue = false) {
   return z
     .union([z.string(), z.boolean()])
     .optional()
-    .default(false)
+    .default(defaultValue)
     .transform((value) => {
       const loweredValue = typeof value === 'string' ? value.trim().toLowerCase() : value;
       switch (loweredValue) {
@@ -84,6 +84,22 @@ export const runOnStartSchema = flexibleBooleanSchema();
  * @default false
  */
 export const skipFailedAccountsSchema = flexibleBooleanSchema();
+
+/** Optional endpoint accepting Apprise-compatible JSON notifications. */
+export const notificationUrlSchema = z
+  .string()
+  .trim()
+  .pipe(z.url({ protocol: /^https?$/u }))
+  .optional();
+export const notifyOnFailureSchema = flexibleBooleanSchema(true);
+export const notifyOnSuccessSchema = flexibleBooleanSchema();
+export const notifyOnNewUncategorizedSchema = flexibleBooleanSchema(true);
+export const notificationTimeoutSchema = z.coerce
+  .number()
+  .int()
+  .min(1)
+  .max(300_000)
+  .default(10_000);
 
 /**
  * Default to info
@@ -156,6 +172,11 @@ export const env = createEnv({
     LOG_LEVEL: await getConfiguration('LOG_LEVEL'),
     RUN_ON_START: await getConfiguration('RUN_ON_START'),
     SKIP_FAILED_ACCOUNTS: await getConfiguration('SKIP_FAILED_ACCOUNTS'),
+    NOTIFICATION_URL: await getConfiguration('NOTIFICATION_URL'),
+    NOTIFY_ON_FAILURE: await getConfiguration('NOTIFY_ON_FAILURE'),
+    NOTIFY_ON_SUCCESS: await getConfiguration('NOTIFY_ON_SUCCESS'),
+    NOTIFY_ON_NEW_UNCATEGORIZED: await getConfiguration('NOTIFY_ON_NEW_UNCATEGORIZED'),
+    NOTIFICATION_TIMEOUT_MS: await getConfiguration('NOTIFICATION_TIMEOUT_MS'),
     TIMEZONE: await getConfiguration('TIMEZONE'),
   },
 
@@ -169,6 +190,11 @@ export const env = createEnv({
     LOG_LEVEL: logLevelSchema,
     RUN_ON_START: runOnStartSchema,
     SKIP_FAILED_ACCOUNTS: skipFailedAccountsSchema,
+    NOTIFICATION_URL: notificationUrlSchema,
+    NOTIFY_ON_FAILURE: notifyOnFailureSchema,
+    NOTIFY_ON_SUCCESS: notifyOnSuccessSchema,
+    NOTIFY_ON_NEW_UNCATEGORIZED: notifyOnNewUncategorizedSchema,
+    NOTIFICATION_TIMEOUT_MS: notificationTimeoutSchema,
     TIMEZONE: timezoneSchema,
   },
 });

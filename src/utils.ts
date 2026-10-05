@@ -146,8 +146,46 @@ async function runBankSyncSkippingFailures(): Promise<string[]> {
   return failedAccounts;
 }
 
-/** Runs bank sync and balance persistence, returning skipped accounts and the balance-write outcome. */
-async function syncBankAccounts(api: BalanceSyncApi) {
+type BankSyncStatus = NonNullable<
+  Awaited<ReturnType<BalanceSyncApi['db']['getAccounts']>>[number]['bank_sync_status']
+>;
+// Enumerated reasons only; raw bank errors stay in the service logs.
+const BANK_SYNC_FAILURE_REASONS: Partial<Record<BankSyncStatus, string>> = {
+  failed: 'bank sync failed',
+  'reauth-required': 're-authentication required',
+  'attention-required': 'needs attention at the bank',
+  'rate-limit-exceeded': 'rate limit exceeded',
+  'timed-out': 'timed out',
+  'account-missing': 'account missing at the bank',
+};
+
+/**
+ * Lists open accounts whose bank sync status Actual recorded as failed. Batch
+ * `runBankSync()` rethrows only the first error without its account, so the
+ * persisted per-account status is the only way to name every failing account
+ * without extra bank requests. Read failures yield an empty list so the
+ * original sync error is what propagates.
+ */
+async function readAccountsNeedingAttention(api: BalanceSyncApi): Promise<string[]> {
+  try {
+    const accounts = await api.db.getAccounts();
+    return accounts.flatMap((account) => {
+      const reason =
+        account.bank_sync_status && BANK_SYNC_FAILURE_REASONS[account.bank_sync_status];
+      return !account.closed && reason ? [`${account.name || account.id} (${reason})`] : [];
+    });
+  } catch (error) {
+    logger.warn({ err: error }, 'Unable to identify accounts that failed bank sync.');
+    return [];
+  }
+}
+
+/**
+ * Runs bank sync and balance persistence, returning skipped accounts and the balance-write outcome.
+ * @throws The batch bank-sync error when `SKIP_FAILED_ACCOUNTS` is off, after recording the
+ * accounts needing attention on `budgetResult`.
+ */
+async function syncBankAccounts(api: BalanceSyncApi, budgetResult?: BudgetSyncResult) {
   logger.info('Syncing all accounts...');
   let failedAccounts: string[] = [];
   if (env.SKIP_FAILED_ACCOUNTS) {
@@ -159,7 +197,18 @@ async function syncBankAccounts(api: BalanceSyncApi) {
       );
     }
   } else {
-    await runBankSync();
+    try {
+      await runBankSync();
+    } catch (error) {
+      failedAccounts = await readAccountsNeedingAttention(api);
+      if (failedAccounts.length > 0) {
+        logger.error({ failedAccounts }, `Bank sync failed for: ${failedAccounts.join(', ')}.`);
+      }
+      if (budgetResult) {
+        budgetResult.failedAccounts = failedAccounts;
+      }
+      throw error;
+    }
   }
   logger.info('All accounts synced.');
   logger.info('Syncing account balances through CRDT...');
@@ -182,7 +231,7 @@ async function syncBudgetToServer() {
 /** Runs bank sync, then pushes synced balance state to the server for the loaded budget. */
 export async function syncAllAccounts(api: BalanceSyncApi, budgetResult?: BudgetSyncResult) {
   // Runs against the currently loaded budget in the Actual API session.
-  const result = await syncBankAccounts(api);
+  const result = await syncBankAccounts(api, budgetResult);
   // Preserve bank/balance outcomes even if the subsequent upload throws.
   if (budgetResult) {
     budgetResult.failedAccounts = result.failedAccounts;

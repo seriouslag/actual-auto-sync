@@ -167,6 +167,49 @@ describe('sync notifications', () => {
     expect(syncBudget).toHaveBeenCalledTimes(2);
   });
 
+  it('names the accounts needing attention when a batch bank sync fails', async () => {
+    vi.mocked(runBankSync).mockRejectedValue(new Error('secret bank error'));
+    db.getAccounts.mockResolvedValue([
+      { id: 'a', name: 'Checking', closed: 0, bank_sync_status: 'reauth-required' },
+      { id: 'b', name: 'Savings', closed: 0, bank_sync_status: 'ok' },
+      { id: 'c', name: '', closed: 0, bank_sync_status: 'rate-limit-exceeded' },
+      { id: 'd', name: 'Old card', closed: 1, bank_sync_status: 'failed' },
+      { id: 'e', name: 'Cash', closed: 0, bank_sync_status: null },
+    ]);
+    await sync();
+    expect(runBankSync).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(payload().type).toBe('failure');
+    expect(payload().body).toContain(
+      'Accounts needing attention: Checking (re-authentication required), c (rate limit exceeded).',
+    );
+    expect(payload().body).not.toContain('Savings');
+    expect(payload().body).not.toContain('Old card');
+    expect(payload().body).not.toContain('Cash');
+    expect(payload().body).not.toContain('secret bank error');
+  });
+
+  it('still reports a batch bank sync failure when account statuses cannot be read', async () => {
+    vi.mocked(runBankSync).mockRejectedValue(new Error('bank down'));
+    db.getAccounts.mockRejectedValue(new Error('database'));
+    await sync();
+    expect(runBankSync).toHaveBeenCalledTimes(4);
+    expect(payload().type).toBe('failure');
+    expect(payload().body).not.toContain('Accounts needing attention');
+  });
+
+  it('clears accounts needing attention when the batch bank sync recovers on retry', async () => {
+    configuration.NOTIFY_ON_SUCCESS = true;
+    vi.mocked(runBankSync).mockRejectedValueOnce(new Error('temporary'));
+    db.getAccounts.mockResolvedValue([
+      { id: 'a', name: 'Checking', closed: 0, bank_sync_status: 'timed-out' },
+    ]);
+    await sync();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(payload().type).toBe('success');
+    expect(payload().body).not.toContain('Accounts needing attention');
+  });
+
   it('reports balance persistence failures without stopping other budgets', async () => {
     db.getAccounts.mockRejectedValueOnce(new Error('database'));
     await sync();

@@ -37,7 +37,7 @@ function notificationPayload(result: SyncResult, type: NotificationType, newTran
         : `${budget.newUncategorizedTransactions} new uncategorized transaction(s)`;
     lines.push(`Budget ${budget.budgetId}: ${budget.status}; ${count}.`);
     if (budget.failedAccounts.length > 0) {
-      lines.push(`Failed accounts: ${budget.failedAccounts.join(', ')}.`);
+      lines.push(`Accounts needing attention: ${budget.failedAccounts.join(', ')}.`);
     }
     lines.push(...budget.warnings);
   }

@@ -250,8 +250,8 @@ docker build --build-arg APP_UID=1001 --build-arg APP_GID=1001 -t actual-auto-sy
 
 ### Prerequisites
 
-- Node.js >= 22 (CI and the Docker image use Node 24)
-- pnpm >= 11 (the repo pins `pnpm@11.8.0`; run `corepack enable` to use the pinned version)
+- Node.js >= 22 (CI and the Docker image use Node 22; the exact version is pinned in the `Dockerfile` and workflows)
+- pnpm >= 11 (the exact version is pinned by `packageManager` in `package.json`; run `corepack enable` to use it)
 
 ### Setup local (non-docker)
 

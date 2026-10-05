@@ -17,7 +17,7 @@ A background service that automatically runs bank sync on Actual Budget accounts
 # Install dependencies
 pnpm install
 
-# Run locally (uses ts-node with ESM loader)
+# Run locally (uses the tsx loader)
 pnpm start
 
 # Run tests
@@ -95,5 +95,5 @@ Environment variables are validated at startup using `@t3-oss/env-core` with Zod
 This project uses ES modules. Important:
 
 - All imports use `.js` extension (e.g., `import { logger } from "./logger.js"`)
-- Uses `ts-node/esm` loader for development: `node --loader ts-node/esm`
+- Uses `tsx` for development: `tsx src/index.ts`
 - Built files go to `dist/` and are run with plain `node dist/src/index.js` in Docker

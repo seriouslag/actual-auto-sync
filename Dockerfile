@@ -1,5 +1,5 @@
 # Build stage
-FROM node:22.23.1-slim AS builder
+FROM node:22.23.3-slim AS builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
@@ -9,6 +9,12 @@ COPY . /app
 WORKDIR /app
 
 FROM builder AS build
+# better-sqlite3 runs node-gyp on install; it needs a toolchain to configure and,
+# on architectures without a bundled prebuild (e.g. arm/v7), to compile from source.
+# Build stage only, so the runtime image stays slim.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 RUN pnpm run build

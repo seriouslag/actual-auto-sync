@@ -22,12 +22,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '22.23.1'
+          node-version: '22.23.3'
 
       - name: Install pnpm
+        # No `version:` — the action reads `packageManager` from package.json,
+        # so there is a single pnpm pin to bump.
         uses: pnpm/action-setup@v6
         with:
-          version: 11.10.0
           run_install: false
 
       - name: Get pnpm store directory

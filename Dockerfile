@@ -1,6 +1,6 @@
 # Base image shared by the build and runtime stages. It holds no project files,
 # so the runtime image carries only what the final stage copies in.
-FROM node:22.23.3-slim AS base
+FROM node:24.21.0-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /app

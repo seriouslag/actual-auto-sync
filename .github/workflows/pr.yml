@@ -89,12 +89,24 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      # `docker buildx` in a run step needs the Actions runtime token/URLs for
+      # the GitHub Actions cache backend (build-push-action exports them itself).
+      - name: Expose GitHub Actions runtime for the build cache
+        uses: crazy-max/ghaction-github-runtime@v3
+
       - name: Build and verify production image (amd64 + arm64 + arm/v7)
         run: |
           set -euo pipefail
           for platform in linux/amd64 linux/arm64 linux/arm/v7; do
             echo "::group::Build + verify ${platform}"
-            docker buildx build --platform "${platform}" --load -t actual-auto-sync:ci .
+            # Reuse layers from main's release build and this PR's earlier runs,
+            # so the arm/v7 SQLite compile only reruns when dependencies change.
+            scope="pr-${platform//\//-}"
+            docker buildx build --platform "${platform}" --load -t actual-auto-sync:ci \
+              --cache-from type=gha,scope=release \
+              --cache-from "type=gha,scope=${scope}" \
+              --cache-to "type=gha,mode=max,scope=${scope}" \
+              .
 
             uid="$(docker run --rm --platform "${platform}" --entrypoint sh actual-auto-sync:ci -c 'id -u')"
             echo "runtime uid (${platform}): ${uid}"

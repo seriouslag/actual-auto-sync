@@ -86,6 +86,9 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           tags: ${{ steps.image.outputs.image_name }}
+          # Read-only: this job runs PR code in the default branch's cache
+          # namespace, so writing here could poison the release cache.
+          cache-from: type=gha,scope=release
 
       - name: Reply with published image
         if: success() && steps.permission.outputs.authorized == 'true'

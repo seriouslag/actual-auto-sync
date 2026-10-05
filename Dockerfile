@@ -1,14 +1,11 @@
-# Build stage
-FROM node:22.23.3-slim AS builder
+# Base image shared by the build and runtime stages. It holds no project files,
+# so the runtime image carries only what the final stage copies in.
+FROM node:22.23.3-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-
-# Copy source files
-COPY . /app
-
 WORKDIR /app
 
-FROM builder AS build
+FROM base AS build
 # better-sqlite3 runs node-gyp on install; it needs a toolchain to configure and,
 # on architectures without a bundled prebuild (e.g. arm/v7), to compile from source.
 # Build stage only, so the runtime image stays slim.
@@ -16,11 +13,15 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
+# Install from the dependency manifests alone so this layer (including the slow
+# arm/v7 SQLite compile) is reused from cache until dependencies change.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+COPY . .
 RUN pnpm run build
 
 
-FROM builder
+FROM base
 # UID/GID of the runtime user. Override at build time to match a host user, e.g.
 # `docker build --build-arg APP_UID=1001 --build-arg APP_GID=1001 .`
 ARG APP_UID=1000
@@ -31,6 +32,8 @@ RUN groupmod --non-unique --gid "${APP_GID}" node \
   && usermod --non-unique --uid "${APP_UID}" --gid "${APP_GID}" node
 
 COPY --from=build --chown=node:node /app/node_modules /app/node_modules
+# package.json marks dist/ as ES modules ("type": "module").
+COPY --from=build --chown=node:node /app/package.json /app/package.json
 COPY --from=build --chown=node:node /app/dist /app/dist
 
 # Writable data directory owned by the runtime user so the rest of the root

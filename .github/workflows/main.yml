@@ -182,3 +182,6 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           tags: ${{ steps.docker_tags.outputs.tags }}
+          # Shared layer cache: PR builds warm-start from this scope.
+          cache-from: type=gha,scope=release
+          cache-to: type=gha,mode=max,scope=release

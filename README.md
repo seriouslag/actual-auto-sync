@@ -281,7 +281,7 @@ docker build --build-arg APP_UID=1001 --build-arg APP_GID=1001 -t actual-auto-sy
 ### Scripts
 
 ```bash
-pnpm start            # Run locally with the ts-node ESM loader
+pnpm start            # Run locally with tsx
 pnpm test             # Run unit tests (Vitest, watch mode)
 pnpm test:coverage    # Run unit tests once with coverage
 pnpm test:e2e         # Run e2e tests (needs an Actual server on localhost:5006)

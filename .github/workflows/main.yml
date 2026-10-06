@@ -20,9 +20,9 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: '22.23.3'
+          node-version: '24.18.1'
 
       - name: Install pnpm
         # No `version:` — the action reads `packageManager` from package.json,
@@ -161,10 +161,14 @@ jobs:
             echo "tags<<EOF"
             echo "$TAGS"
             echo "EOF"
+            # Same tags with an `-alpine` suffix for the Alpine variant.
+            echo "alpine_tags<<EOF"
+            printf '%s\n' "$TAGS" | awk '{ print $0 "-alpine" }'
+            echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -180,8 +184,21 @@ jobs:
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.docker_tags.outputs.tags }}
           # Shared layer cache: PR builds warm-start from this scope.
           cache-from: type=gha,scope=release
           cache-to: type=gha,mode=max,scope=release
+
+      # The `-alpine` variant adds linux/arm/v7, which the official node:24
+      # images (and so the default image) do not support.
+      - name: Build and push Alpine Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.alpine
+          push: true
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          tags: ${{ steps.docker_tags.outputs.alpine_tags }}
+          cache-from: type=gha,scope=release-alpine
+          cache-to: type=gha,mode=max,scope=release-alpine

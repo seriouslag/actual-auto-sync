@@ -37,6 +37,11 @@
       "automerge": false,
       "groupName": "All other major updates",
       "schedule": ["every weekend"]
+    },
+    {
+      "description": "pnpm 12+ ships only native binaries and has no 32-bit ARM build, which the arm/v7 Alpine image needs. Stay on pnpm 11 until that changes.",
+      "matchPackageNames": ["pnpm"],
+      "allowedVersions": "<12"
     }
   ]
 }

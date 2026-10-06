@@ -1,0 +1,71 @@
+# Alpine variant, published with the `-alpine` tag suffix.
+#
+# The official node:24 images are not built for linux/arm/v7, but Alpine's
+# own nodejs package is (the same way Actual Budget ships its arm/v7 image), so
+# this variant covers amd64, arm64 and arm/v7. The default Debian image is
+# built from `Dockerfile`.
+FROM alpine:3.23 AS base
+WORKDIR /app
+
+FROM base AS build
+# npm only to install corepack (Alpine does not package it) and node-gyp;
+# python3/make/g++ to compile better-sqlite3 where it has no prebuild (arm/v7).
+RUN apk add --no-cache nodejs npm python3 make g++
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN npm install --global corepack node-gyp@12 && corepack enable
+# Install from the dependency manifests alone so these layers (including the
+# slow arm/v7 SQLite compile below) are reused from cache until dependencies change.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN --mount=type=cache,id=pnpm-alpine,target=/pnpm/store pnpm install --frozen-lockfile
+# better-sqlite3 13 bundles prebuilt binaries only for x64/arm64 and opts out
+# of install-time builds (`gypfile: false`), so pnpm never compiles it. Build it
+# from source where its own loader finds no prebuild for this platform (arm/v7).
+RUN cd node_modules/better-sqlite3 \
+  && if node -e "process.exit(require('./lib/binding.js').getPrebuildPath() ? 0 : 1)"; then \
+    echo "better-sqlite3: using the bundled prebuild"; \
+  else \
+    node-gyp rebuild --release; \
+  fi
+COPY . .
+RUN pnpm run build
+
+
+FROM base
+RUN apk add --no-cache nodejs
+
+# UID/GID of the runtime user. Override at build time to match a host user, e.g.
+# `docker build -f Dockerfile.alpine --build-arg APP_UID=1001 --build-arg APP_GID=1001 .`
+ARG APP_UID=1000
+ARG APP_GID=1000
+
+# Create the unprivileged `node` user, reusing an existing group with APP_GID.
+RUN group="$(getent group "${APP_GID}" | cut -d: -f1)" \
+  && if [ -z "${group}" ]; then addgroup -g "${APP_GID}" node && group=node; fi \
+  && adduser -D -H -s /sbin/nologin -u "${APP_UID}" -G "${group}" node
+
+COPY --from=build --chown=${APP_UID}:${APP_GID} /app/node_modules /app/node_modules
+# package.json marks dist/ as ES modules ("type": "module").
+COPY --from=build --chown=${APP_UID}:${APP_GID} /app/package.json /app/package.json
+COPY --from=build --chown=${APP_UID}:${APP_GID} /app/dist /app/dist
+
+# Writable data directory owned by the runtime user so the rest of the root
+# filesystem can be mounted read-only.
+RUN mkdir -p /data && chown "${APP_UID}:${APP_GID}" /data
+
+# Environment variables
+ENV ACTUAL_SERVER_URL=""
+# Keep budget data/caches on the writable mount so `--read-only` works.
+ENV ACTUAL_DATA_DIR="/data"
+# once a day at 1am in America/New_York
+ENV CRON_SCHEDULE="0 1 * * *"
+ENV LOG_LEVEL="info"
+ENV ACTUAL_BUDGET_SYNC_IDS=""
+ENV ENCRYPTION_PASSWORDS=""
+ENV TIMEZONE="America/New_York"
+
+# Run as the unprivileged node user
+USER node
+
+# Start the application
+CMD ["node", "dist/src/index.js"]

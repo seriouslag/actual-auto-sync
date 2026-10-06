@@ -17,9 +17,9 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: '22.23.3'
+          node-version: '24.18.1'
 
       - name: Install pnpm
         # No `version:` — the action reads `packageManager` from package.json,
@@ -66,14 +66,16 @@ jobs:
           verbose: true
           fail_ci_if_error: false
 
-  # Builds the shipped Dockerfile (the e2e job builds Dockerfile.e2e, so the
-  # production image is otherwise never exercised in CI) for every published
-  # platform, then verifies each image runs unprivileged as uid 1000 and can
-  # load its native better-sqlite3 binary. The arm64 and arm/v7 builds run under
-  # QEMU emulation and catch arch-specific build/prebuild regressions pre-merge,
-  # before the main-branch publish assembles the multi-arch manifest.
+  # Builds both shipped images (the e2e job builds Dockerfile.e2e, so the
+  # production images are otherwise never exercised in CI) for every published
+  # platform: the default Debian image (`Dockerfile`, amd64 + arm64) and the
+  # `-alpine` variant (`Dockerfile.alpine`, amd64 + arm64 + arm/v7). Each image
+  # must run unprivileged as uid 1000, load its native better-sqlite3 binary and
+  # resolve IANA time zones. The arm builds run under QEMU emulation and catch
+  # arch-specific build/prebuild regressions pre-merge, before the main-branch
+  # publish assembles the multi-arch manifests.
   #
-  # All platforms are exercised in a single job (rather than a matrix) so the
+  # All images are exercised in a single job (rather than a matrix) so the
   # status-check context stays named `docker-image` — a matrix would emit
   # `docker-image (linux/amd64)` / `(linux/arm64)` instead and break any branch
   # protection rule that requires the `docker-image` context.
@@ -84,7 +86,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -95,34 +97,46 @@ jobs:
         # Third-party action that handles the runtime token: pinned by commit SHA.
         uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
 
-      - name: Build and verify production image (amd64 + arm64 + arm/v7)
+      - name: Build and verify production images
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          for platform in linux/amd64 linux/arm64 linux/arm/v7; do
-            echo "::group::Build + verify ${platform}"
+
+          # verify <dockerfile> <variant> <release cache scope> <platform>
+          verify() {
+            local dockerfile="$1" variant="$2" release_scope="$3" platform="$4"
+            echo "::group::Build + verify ${variant} ${platform}"
             # Reuse layers from main's release build and this PR's earlier runs,
             # so the arm/v7 SQLite compile only reruns when dependencies change.
             # GitHub already isolates caches by ref; the PR number makes the
             # per-PR scope explicit.
-            scope="pr-${PR_NUMBER}-${platform//\//-}"
-            docker buildx build --platform "${platform}" --load -t actual-auto-sync:ci \
-              --cache-from type=gha,scope=release \
+            local scope="pr-${PR_NUMBER}-${variant}-${platform//\//-}"
+            docker buildx build --file "${dockerfile}" --platform "${platform}" --load -t actual-auto-sync:ci \
+              --cache-from "type=gha,scope=${release_scope}" \
               --cache-from "type=gha,scope=${scope}" \
               --cache-to "type=gha,mode=max,scope=${scope}" \
               .
 
+            local uid
             uid="$(docker run --rm --platform "${platform}" --entrypoint sh actual-auto-sync:ci -c 'id -u')"
-            echo "runtime uid (${platform}): ${uid}"
+            echo "runtime uid (${variant} ${platform}): ${uid}"
             if [ "${uid}" != "1000" ]; then
-              echo "::error::[${platform}] expected the container to run as uid 1000, got ${uid}"
+              echo "::error::[${variant} ${platform}] expected the container to run as uid 1000, got ${uid}"
               exit 1
             fi
 
             # Load the native SQLite binary and run a query — this is the
-            # arch-specific risk (each arch's prebuild must match the runtime ABI).
+            # arch-specific risk (each arch's binary must match the runtime ABI) —
+            # and resolve the default TIMEZONE, which needs ICU time zone data.
             docker run --rm --platform "${platform}" --entrypoint node actual-auto-sync:ci \
-              -e "const D=require('better-sqlite3'); const db=new D(':memory:'); if (db.prepare('select 42 as n').get().n !== 42) { process.exit(1); } console.log('better-sqlite3 OK on', process.arch);"
+              -e "const D=require('better-sqlite3'); const db=new D(':memory:'); if (db.prepare('select 42 as n').get().n !== 42) { process.exit(1); } new Intl.DateTimeFormat('en-US', { timeZone: process.env.TIMEZONE }).format(0); console.log('better-sqlite3 + time zones OK on', process.arch, process.version);"
             echo "::endgroup::"
+          }
+
+          for platform in linux/amd64 linux/arm64; do
+            verify Dockerfile debian release "${platform}"
+          done
+          for platform in linux/amd64 linux/arm64 linux/arm/v7; do
+            verify Dockerfile.alpine alpine release-alpine "${platform}"
           done

@@ -1,17 +1,18 @@
+# Default image (linux/amd64 + linux/arm64), on the same Node.js 24 Debian
+# base as Actual Budget's server image. The official node:24 images are not
+# built for linux/arm/v7; that platform is published by `Dockerfile.alpine`
+# under the `-alpine` tags.
+#
 # Base image shared by the build and runtime stages. It holds no project files,
 # so the runtime image carries only what the final stage copies in.
-FROM node:22.23.3-slim AS base
+FROM node:24.18.1-bookworm-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /app
 
 FROM base AS build
-# better-sqlite3 runs node-gyp on install; it needs a toolchain to configure and,
-# on architectures without a bundled prebuild (e.g. arm/v7), to compile from source.
-# Build stage only, so the runtime image stays slim.
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
+# No compiler toolchain: better-sqlite3 13 loads its bundled prebuild on both
+# platforms this image targets (amd64, arm64) and does not build on install.
 RUN corepack enable
 # Install from the dependency manifests alone so this layer (including the slow
 # arm/v7 SQLite compile) is reused from cache until dependencies change.

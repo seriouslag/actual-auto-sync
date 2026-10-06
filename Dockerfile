@@ -1,6 +1,11 @@
+# Default image (linux/amd64 + linux/arm64), on the same Node.js 24 Debian
+# base as Actual Budget's server image. The official node:24 images are not
+# built for linux/arm/v7; that platform is published by `Dockerfile.alpine`
+# under the `-alpine` tags.
+#
 # Base image shared by the build and runtime stages. It holds no project files,
 # so the runtime image carries only what the final stage copies in.
-FROM node:22.23.3-slim AS base
+FROM node:24.18.1-bookworm-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /app

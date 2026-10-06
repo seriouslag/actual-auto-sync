@@ -65,7 +65,7 @@ jobs:
 
       - name: Set up QEMU
         if: steps.permission.outputs.authorized == 'true'
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         if: steps.permission.outputs.authorized == 'true'
@@ -84,11 +84,23 @@ jobs:
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.image.outputs.image_name }}
           # Read-only: this job runs PR code in the default branch's cache
           # namespace, so writing here could poison the release cache.
           cache-from: type=gha,scope=release
+
+      - name: Build and push Alpine test image
+        if: steps.permission.outputs.authorized == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.alpine
+          push: true
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          tags: ${{ steps.image.outputs.image_name }}-alpine
+          # Read-only, as above.
+          cache-from: type=gha,scope=release-alpine
 
       - name: Reply with published image
         if: success() && steps.permission.outputs.authorized == 'true'
@@ -101,7 +113,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `Published test Docker image for this PR:\n\n\`${process.env.IMAGE_NAME}\``,
+              body: `Published test Docker images for this PR:\n\n- \`${process.env.IMAGE_NAME}\` (amd64, arm64)\n- \`${process.env.IMAGE_NAME}-alpine\` (amd64, arm64, arm/v7)`,
             });
 
       - name: Reply publish failure

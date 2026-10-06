@@ -129,19 +129,25 @@ services:
 
 Images are published as multi-arch manifests, so `docker pull` / `docker run` automatically selects the right build for your host.
 
-**Supported platforms:**
+Two image variants are published, mirroring the upstream [Actual Budget server](https://hub.docker.com/r/actualbudget/actual-server) images and the Node.js version Actual uses (24):
+
+| Variant | Tags                                  | Base                                          | Platforms                                    |
+| ------- | ------------------------------------- | --------------------------------------------- | -------------------------------------------- |
+| Default | `latest`, `vX.Y.Z.N`, …               | Debian (`node:24-bookworm-slim`)              | `linux/amd64`, `linux/arm64`                 |
+| Alpine  | `latest-alpine`, `vX.Y.Z.N-alpine`, … | Alpine (`alpine:3.23` + its `nodejs` package) | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
 - `linux/amd64` — x86-64 (Intel/AMD)
 - `linux/arm64` — 64-bit ARM (ARM64/aarch64), e.g. Apple Silicon, an ARM-based NAS/server, or a Raspberry Pi 4/5 running a 64-bit OS
-- `linux/arm/v7` — 32-bit ARM (ARMv7/armhf), e.g. a Raspberry Pi 2/3 or a Pi running a 32-bit OS
+- `linux/arm/v7` — 32-bit ARM (ARMv7/armhf), e.g. a Raspberry Pi 2/3 or a Pi running a 32-bit OS — **use the `-alpine` tags**
 
-This matches the platforms published by the upstream [Actual Budget server](https://hub.docker.com/r/actualbudget/actual-server), so the sync service runs anywhere the server does. On 32-bit ARM the process is limited to a ~2–3 GB address space, which is ample for syncing but worth noting for very large budgets.
+The official Node.js 24 images are not built for 32-bit ARM, so, like Actual, 32-bit ARM is served by the Alpine variant. If you run on 32-bit ARM, switch `seriouslag/actual-auto-sync:latest` to `seriouslag/actual-auto-sync:latest-alpine`. On 32-bit ARM the process is limited to a ~2–3 GB address space, which is ample for syncing but worth noting for very large budgets.
 
 Published tags include:
 
 - `latest` for the newest successful `main` build
 - `vX.Y.Z.N` and `X.Y.Z.N` tags where `X.Y.Z` matches `@actual-app/api` (Actual Budget) and `N` is an internal release counter (for example: `26.2.0.1`, `26.2.0.2`)
 - `<commit-sha>` tags for build traceability
+- each of the above with an `-alpine` suffix for the Alpine variant
 
 ### Publish a PR test image (maintainers)
 
@@ -250,7 +256,7 @@ docker build --build-arg APP_UID=1001 --build-arg APP_GID=1001 -t actual-auto-sy
 
 ### Prerequisites
 
-- Node.js >= 22 (CI and the Docker image use Node 22; the exact version is pinned in the `Dockerfile` and workflows)
+- Node.js >= 22 (CI and the Docker images use Node 24, matching Actual Budget; the exact version is pinned in the Dockerfiles and workflows)
 - pnpm >= 11 (the exact version is pinned by `packageManager` in `package.json`; run `corepack enable` to use it)
 
 ### Setup local (non-docker)

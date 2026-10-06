@@ -42,6 +42,11 @@
       "description": "pnpm 12+ ships only native binaries and has no 32-bit ARM build, which the arm/v7 Alpine image needs. Stay on pnpm 11 until that changes.",
       "matchPackageNames": ["pnpm"],
       "allowedVersions": "<12"
+    },
+    {
+      "description": "Keep Node.js on the version Actual Budget uses (its .nvmrc), which is also the version Alpine's nodejs package provides for the arm/v7 image. Bump this when Actual moves.",
+      "matchPackageNames": ["node"],
+      "allowedVersions": "/^24\\.18\\.1(-|$)/"
     }
   ]
 }

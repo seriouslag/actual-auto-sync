@@ -134,7 +134,7 @@ Two image variants are published, mirroring the upstream [Actual Budget server](
 | Variant | Tags                                  | Base                                          | Platforms                                    |
 | ------- | ------------------------------------- | --------------------------------------------- | -------------------------------------------- |
 | Default | `latest`, `vX.Y.Z.N`, …               | Debian (`node:24-bookworm-slim`)              | `linux/amd64`, `linux/arm64`                 |
-| Alpine  | `latest-alpine`, `vX.Y.Z.N-alpine`, … | Alpine (`alpine:3.23` + its `nodejs` package) | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| Alpine  | `latest-alpine`, `vX.Y.Z.N-alpine`, … | Alpine (`alpine:3.24` + its `nodejs` package) | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
 - `linux/amd64` — x86-64 (Intel/AMD)
 - `linux/arm64` — 64-bit ARM (ARM64/aarch64), e.g. Apple Silicon, an ARM-based NAS/server, or a Raspberry Pi 4/5 running a 64-bit OS

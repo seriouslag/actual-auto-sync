@@ -8,16 +8,25 @@ FROM alpine:3.23 AS base
 WORKDIR /app
 
 FROM base AS build
-# npm only to install corepack (Alpine does not package it); python3/make/g++
-# for better-sqlite3's node-gyp step, which compiles SQLite on arm/v7.
+# npm only to install corepack (Alpine does not package it) and node-gyp;
+# python3/make/g++ to compile better-sqlite3 where it has no prebuild (arm/v7).
 RUN apk add --no-cache nodejs npm python3 make g++
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN npm install --global corepack && corepack enable
-# Install from the dependency manifests alone so this layer (including the slow
-# arm/v7 SQLite compile) is reused from cache until dependencies change.
+RUN npm install --global corepack node-gyp@12 && corepack enable
+# Install from the dependency manifests alone so these layers (including the
+# slow arm/v7 SQLite compile below) are reused from cache until dependencies change.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-alpine,target=/pnpm/store pnpm install --frozen-lockfile
+# better-sqlite3 13 bundles prebuilt binaries only for x64/arm64 and opts out
+# of install-time builds (`gypfile: false`), so pnpm never compiles it. Build it
+# from source where its own loader finds no prebuild for this platform (arm/v7).
+RUN cd node_modules/better-sqlite3 \
+  && if node -e "process.exit(require('./lib/binding.js').getPrebuildPath() ? 0 : 1)"; then \
+    echo "better-sqlite3: using the bundled prebuild"; \
+  else \
+    node-gyp rebuild --release; \
+  fi
 COPY . .
 RUN pnpm run build
 

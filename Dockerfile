@@ -11,12 +11,8 @@ ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /app
 
 FROM base AS build
-# better-sqlite3 runs node-gyp on install; it needs a toolchain to configure and,
-# on architectures without a bundled prebuild (e.g. arm/v7), to compile from source.
-# Build stage only, so the runtime image stays slim.
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
+# No compiler toolchain: better-sqlite3 13 loads its bundled prebuild on both
+# platforms this image targets (amd64, arm64) and does not build on install.
 RUN corepack enable
 # Install from the dependency manifests alone so this layer (including the slow
 # arm/v7 SQLite compile) is reused from cache until dependencies change.

@@ -42,6 +42,11 @@
       "description": "pnpm 12+ ships only native binaries and has no 32-bit ARM build, which the arm/v7 Alpine image needs. Stay on pnpm 11 until that changes.",
       "matchPackageNames": ["pnpm"],
       "allowedVersions": "<12"
+    },
+    {
+      "description": "Keep the Debian image and CI on the Node.js version Actual Budget uses (its .nvmrc). Bump this when Actual moves. The Alpine image installs Alpine's nodejs package unpinned (as Actual does): it currently provides 24.18.1 and receives Alpine's security patch updates within the branch; exact apk pins break builds once Alpine replaces the package.",
+      "matchPackageNames": ["node"],
+      "allowedVersions": "/^24\\.18\\.1(-|$)/"
     }
   ]
 }

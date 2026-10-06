@@ -4,7 +4,7 @@
 # own nodejs package is (the same way Actual Budget ships its arm/v7 image), so
 # this variant covers amd64, arm64 and arm/v7. The default Debian image is
 # built from `Dockerfile`.
-FROM alpine:3.23 AS base
+FROM alpine:3.24 AS base
 WORKDIR /app
 
 FROM base AS build

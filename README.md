@@ -90,7 +90,7 @@ NOTIFICATION_TIMEOUT_MS=10000
      apprise:
        image: caronc/apprise:latest
        ports:
-         - '8000:8000' # only needed to reach the web UI from your browser
+         - '127.0.0.1:8000:8000' # web UI from this host only; Apprise has no authentication by default
        volumes:
          - apprise-config:/config # keeps saved configurations across restarts
 

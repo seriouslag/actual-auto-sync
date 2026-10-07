@@ -19,6 +19,18 @@ services:
       start_period: 5s
     restart: 'no'
 
+  # Apprise API
+  # Receives notification summaries and relays them to a json:// receiver run by the e2e tests
+  apprise:
+    image: caronc/apprise:latest
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/status']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: 'no'
+
   actual-server:
     image: actualbudget/actual-server:latest
     ports:
@@ -45,6 +57,8 @@ services:
         condition: service_healthy
       mock-simplefin:
         condition: service_healthy
+      apprise:
+        condition: service_healthy
     environment:
       - ACTUAL_SERVER_URL=http://actual-server:5006
       - ACTUAL_SERVER_PASSWORD=test-password-e2e
@@ -53,6 +67,9 @@ services:
       - MOCK_SIMPLEFIN_PORT=8080
       - MOCK_SIMPLEFIN_URL=http://mock-simplefin:8080
       - MOCK_SIMPLEFIN_ACCESS_KEY=http://test:test123@mock-simplefin:8080/
+      # Apprise API, and the hostname Apprise uses to reach the tests' notification receiver
+      - APPRISE_URL=http://apprise:8000
+      - APPRISE_CALLBACK_HOST=e2e-tests
       # Real SimpleFIN tokens (for multi-budget tests with beta-bridge.simplefin.org)
       # SIMPLEFIN_SETUP_TOKEN: Base64-encoded claim URL (e.g., aHR0cHM6Ly9iZXRh...)
       #   - One-time use token that must be claimed to get an access key

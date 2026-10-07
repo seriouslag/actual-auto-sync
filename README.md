@@ -79,7 +79,46 @@ NOTIFY_ON_NEW_UNCATEGORIZED=true
 NOTIFICATION_TIMEOUT_MS=10000
 ```
 
-For [Apprise API](https://github.com/caronc/apprise-api), create a saved configuration named `actual-auto-sync` in its web UI with your desired destinations, then point the sync service at `/notify/actual-auto-sync`. The Apprise service must be reachable from the sync container; `apprise` in this example is its Docker Compose service name. Destination URLs such as `discord://...` or `mailto://...` belong in Apprise, while `NOTIFICATION_URL` is the HTTP API endpoint. No Apprise or Python installation is needed in the sync container.
+#### Setting up Apprise
+
+[Apprise API](https://github.com/caronc/apprise-api) relays each summary to the destinations you choose (Discord, Telegram, ntfy, email, and [many more](https://github.com/caronc/apprise/wiki)). No Apprise or Python installation is needed in the sync container.
+
+1. Run Apprise API next to the sync service:
+
+   ```yaml
+   services:
+     apprise:
+       image: caronc/apprise:latest
+       ports:
+         - '127.0.0.1:8000:8000' # web UI from this host only; Apprise has no authentication by default
+       volumes:
+         - apprise-config:/config # keeps saved configurations across restarts
+
+     actual-auto-sync:
+       image: seriouslag/actual-auto-sync:latest
+       environment:
+         # ...your existing settings...
+         - NOTIFICATION_URL=http://apprise:8000/notify/actual-auto-sync
+
+   volumes:
+     apprise-config:
+   ```
+
+2. Save a configuration named `actual-auto-sync` that lists your destinations. Either open `http://localhost:8000/cfg/actual-auto-sync` in a browser, or use the API:
+
+   ```bash
+   curl -X POST -H 'Content-Type: application/json' \
+     -d '{"urls": "discord://webhook_id/webhook_token"}' \
+     http://localhost:8000/add/actual-auto-sync
+   ```
+
+   Destination URLs such as `discord://...` or `mailto://...` belong in Apprise, while `NOTIFICATION_URL` is Apprise's HTTP endpoint for that saved configuration. The configuration name is the last segment of `NOTIFICATION_URL`.
+
+3. Optionally, send a test alert by starting the sync service once with `RUN_ON_START=true` and `NOTIFY_ON_SUCCESS=true`. If nothing arrives, check the sync service logs: an unknown configuration name is logged as `Notification delivery failed.` with `status: 404`.
+
+The Apprise service must be reachable from the sync container; `apprise` above is its Docker Compose service name. Apprise uses the summary's `type` (`success`, `warning`, or `failure`) to pick each destination's icon or color.
+
+#### What gets sent
 
 By default, alerts are sent for failures and new uncategorized transactions. Set `NOTIFY_ON_SUCCESS=true` to also receive routine success alerts. Each run sends at most one summary after all budgets, retries, and API shutdown finish. Final failures use `type: failure`; skipped accounts, balance persistence errors, or transaction-query errors use `type: warning`. Successful runs use `type: success`. A recovered retry alone does not trigger a failure alert.
 

@@ -50,6 +50,8 @@ describe('notification delivery', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: expect.any(AbortSignal),
+        // Following a redirect could forward the summary to an unintended host.
+        redirect: 'error',
       }),
     );
     const payload = JSON.parse(fetchMock.mock.calls[0][1].body);
@@ -58,6 +60,49 @@ describe('notification delivery', () => {
       format: 'text',
       title: expect.any(String),
       body: expect.stringContaining('budget1'),
+    });
+  });
+
+  it('summarizes every budget, account needing attention, warning, and error in a fixed format', async () => {
+    await notifySyncResult({
+      budgets: [
+        { ...success.budgets[0], newUncategorizedTransactions: 3 },
+        {
+          budgetId: 'budget2',
+          status: 'partial',
+          failedAccounts: ['Checking (re-authentication required)', 'Savings (rate limited)'],
+          warnings: ['Account balances could not be saved.'],
+          newUncategorizedTransactions: null,
+        },
+      ],
+      errors: ['API shutdown failed.'],
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      title: 'Actual Auto Sync failed',
+      type: 'failure',
+      format: 'text',
+      body: [
+        'Actual Auto Sync failed',
+        '3 new uncategorized transaction(s) detected in inspected budgets.',
+        'Budget budget1: success; 3 new uncategorized transaction(s).',
+        'Budget budget2: partial; new transaction count unavailable.',
+        'Accounts needing attention: Checking (re-authentication required), Savings (rate limited).',
+        'Account balances could not be saved.',
+        'API shutdown failed.',
+      ].join('\n'),
+    });
+  });
+
+  it('labels partial runs as warnings', async () => {
+    await notifySyncResult({
+      budgets: [
+        { ...success.budgets[0], status: 'partial', failedAccounts: ['Checking (failed)'] },
+      ],
+      errors: [],
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      title: 'Actual Auto Sync completed with warnings',
+      type: 'warning',
     });
   });
 
@@ -98,6 +143,17 @@ describe('notification delivery', () => {
     expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain('http://apprise');
   });
 
+  it('logs connection errors as delivery failures without exposing endpoint credentials', async () => {
+    fetchMock.mockRejectedValue(
+      new TypeError('fetch failed', {
+        cause: new Error('getaddrinfo ENOTFOUND http://user:secret@apprise:8000'),
+      }),
+    );
+    await expect(notifySyncResult(success)).resolves.toBeUndefined();
+    expect(logger.warn).toHaveBeenCalledExactlyOnceWith('Notification delivery failed.');
+    expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain('secret');
+  });
+
   it('aborts delivery at the configured timeout and resolves without throwing', async () => {
     vi.useFakeTimers();
     fetchMock.mockImplementation(
@@ -110,6 +166,6 @@ describe('notification delivery', () => {
     await vi.advanceTimersByTimeAsync(100);
     await expect(pending).resolves.toBeUndefined();
     expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
-    expect(logger.warn).toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledExactlyOnceWith('Notification delivery timed out.');
   });
 });

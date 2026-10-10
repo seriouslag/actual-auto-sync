@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '24.18.1'
+          node-version: '24.21.0'
 
       - name: Install pnpm
         # No `version:` — the action reads `packageManager` from package.json,

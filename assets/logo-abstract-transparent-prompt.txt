@@ -1,0 +1,8 @@
+Edited with the built-in image_gen tool.
+Source: the approved navy and teal abstract logo.
+Final logo: logo-abstract-transparent.png
+
+Final edit prompt:
+Use case: background-extraction.
+Input image 1 is the edit target, the approved abstract Actual Auto Sync logo.
+Remove only the white background, including the white negative space between the two shapes, and replace all background pixels with true transparent alpha. Preserve the exact navy and teal shapes, colors, geometry, crisp edges, position, scale, and square canvas. Keep the colored logo fully opaque. No redesign, no additional elements, no text, no glow, no shadow, no haze, no gradients, no feathering. Transparent pixels should surround the emblem and occupy the negative space. Output a clean transparent PNG cutout of the same logo.

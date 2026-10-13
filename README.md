@@ -14,6 +14,7 @@ It connects to your Actual Budget server with the official [`@actual-app/api`](h
 - [Configuration](#configuration)
   - [Environment variables](#environment-variables)
   - [Notifications](#notifications)
+  - [Heartbeat monitoring](#heartbeat-monitoring)
   - [Environment variables from files (Docker secrets)](#environment-variables-from-files-docker-secrets)
   - [If using with OIDC auth provider](#if-using-with-oidc-auth-provider-in-actual-budget-server)
 - [Running with Docker (pull from Docker Hub)](#running-with-docker-pull-from-docker-hub)
@@ -32,6 +33,7 @@ It connects to your Actual Budget server with the official [`@actual-app/api`](h
 - Reads configuration from the environment or from files (Docker secrets) via the `_FILE` convention
 - Ships as a Docker image that runs as a non-root user and supports a read-only root filesystem
 - Optional notifications for sync failures and new uncategorized transactions, compatible with Apprise API
+- Optional heartbeat URL pings for dead-man's-switch monitors such as Healthchecks.io, Uptime Kuma, Cronitor, and Watchgoose
 - Configurable logging levels for monitoring and debugging
 - Uses the official Actual Budget API for reliable synchronization
 
@@ -56,6 +58,11 @@ It connects to your Actual Budget server with the official [`@actual-app/api`](h
 | `NOTIFY_ON_SUCCESS`           | No       | `false`                                            | Notify on every fully successful sync run.                                                                                  |
 | `NOTIFY_ON_NEW_UNCATEGORIZED` | No       | `true`                                             | Notify when a run imports new transactions that still need categories.                                                      |
 | `NOTIFICATION_TIMEOUT_MS`     | No       | `10000`                                            | Delivery timeout in milliseconds (1–300000). Delivery failures are logged without retrying bank sync.                       |
+| `HEARTBEAT_URL`               | No       | _(unset)_                                          | HTTP(S) URL pinged after a fully successful sync run. No success ping is sent unless this is set.                           |
+| `HEARTBEAT_FAILURE_URL`       | No       | _(unset)_                                          | HTTP(S) URL pinged when a run fails or finishes partially. Skipped when unset.                                              |
+| `HEARTBEAT_START_URL`         | No       | _(unset)_                                          | HTTP(S) URL pinged once at the start of a run so a monitor can measure duration.                                            |
+| `HEARTBEAT_METHOD`            | No       | `GET`                                              | `GET` or `POST`. `POST` sends no body.                                                                                      |
+| `HEARTBEAT_TIMEOUT_MS`        | No       | `10000`                                            | Ping timeout in milliseconds (1–300000). A ping failure is logged and leaves the sync result unchanged.                     |
 
 You can find your budget sync IDs in the Actual Budget app > _Selected Budget_ > Settings > Advanced Settings > Sync ID.
 
@@ -129,6 +136,69 @@ New-transaction alerts compare bank import identities before and after each budg
 The endpoint receives a POST with `title`, `body`, `type`, and `format: text`. Summaries include budget sync IDs, names and sync-status reasons of accounts needing attention, and transaction counts; they omit transaction amounts, payees, notes, raw bank data, and raw error messages. A count is marked unavailable when inspection is disabled or unsuccessful. Use the service logs for error details. A delivery failure or timeout is logged and never retries the bank sync. Delivery is best-effort: missed notifications are not queued for a later run.
 
 All notification settings support the `_FILE` convention below. For example, use `NOTIFICATION_URL_FILE` to load an endpoint from a Docker secret. This first integration supports endpoints that accept POSTs without additional authentication headers; for Apprise, configure an appropriately accessible saved configuration or use a proxy that supplies authentication.
+
+### Heartbeat monitoring
+
+Optional dead-man's-switch pings for any monitor that accepts an HTTP request. This is separate from [Apprise notifications](#notifications). When the heartbeat variables are unset, the service sends no pings and sync behavior stays the same.
+
+A token in the path, query, or userinfo is a secret. Logs include the host only, at `debug` when a ping succeeds and at `warn` when it fails.
+
+```dotenv
+HEARTBEAT_URL=https://hc-ping.com/your-uuid-here
+HEARTBEAT_FAILURE_URL=https://hc-ping.com/your-uuid-here/fail
+HEARTBEAT_START_URL=https://hc-ping.com/your-uuid-here/start
+HEARTBEAT_METHOD=GET
+HEARTBEAT_TIMEOUT_MS=10000
+```
+
+#### When each URL is pinged
+
+Each scheduled run, including a run started by `RUN_ON_START`, sends at most one start ping and then one outcome ping.
+
+- `HEARTBEAT_START_URL`, when set, is pinged once before budgets are downloaded. Budget retries stay inside that same run and do not send another start ping.
+- `HEARTBEAT_URL` is pinged when the run is fully successful. That is the same outcome Apprise labels `type: success`: every budget status is `success`, and the run has no cycle-level errors.
+- `HEARTBEAT_FAILURE_URL` is pinged when the run is anything else. That includes a budget that still fails after retries, an initialization failure, an API shutdown failure, and a partial run. When this variable is unset, those runs send no outcome ping.
+
+Partial runs count as heartbeat failures. With `SKIP_FAILED_ACCOUNTS=true`, a skipped account leaves that budget `partial` (an Apprise warning). Balance persistence errors and transaction-inspection warnings do too. Those runs ping `HEARTBEAT_FAILURE_URL`, so the monitor records a failed check. A missed run remains the case where no outcome ping arrives at all. A retry that recovers before the run finishes is a success and pings `HEARTBEAT_URL`.
+
+Each ping is a single request. A timeout, network error, or non-success HTTP status is logged at `warn` with the host only. The sync result stays whatever the bank sync produced, and the service does not retry the ping.
+
+All heartbeat settings support the `_FILE` convention below. For example, use `HEARTBEAT_URL_FILE` to load a URL from a Docker secret.
+
+#### Healthchecks.io
+
+```dotenv
+HEARTBEAT_URL=https://hc-ping.com/your-uuid-here
+HEARTBEAT_FAILURE_URL=https://hc-ping.com/your-uuid-here/fail
+HEARTBEAT_START_URL=https://hc-ping.com/your-uuid-here/start
+```
+
+#### Uptime Kuma
+
+Create a Push monitor and use its push URL. Set the up and down URLs. Leave `HEARTBEAT_START_URL` unset; a Kuma push monitor has an up signal and a down signal.
+
+```dotenv
+HEARTBEAT_URL=https://kuma.example.com/api/push/your-token?status=up&msg=OK&ping=
+HEARTBEAT_FAILURE_URL=https://kuma.example.com/api/push/your-token?status=down&msg=DOWN&ping=
+```
+
+#### Cronitor
+
+Include `state` on each URL. A Cronitor `/p/` ping without `state` records a tick.
+
+```dotenv
+HEARTBEAT_URL=https://cronitor.link/p/your-api-key/your-monitor?state=complete
+HEARTBEAT_FAILURE_URL=https://cronitor.link/p/your-api-key/your-monitor?state=fail
+HEARTBEAT_START_URL=https://cronitor.link/p/your-api-key/your-monitor?state=run
+```
+
+#### Watchgoose
+
+```dotenv
+HEARTBEAT_URL=https://watchgoose.com/ping/your-check-uuid
+HEARTBEAT_FAILURE_URL=https://watchgoose.com/ping/your-check-uuid/fail
+HEARTBEAT_START_URL=https://watchgoose.com/ping/your-check-uuid/start
+```
 
 ### Environment variables from files (Docker secrets)
 

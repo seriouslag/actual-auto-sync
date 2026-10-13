@@ -15,6 +15,21 @@ export interface SyncResult {
 }
 
 type NotificationType = 'failure' | 'warning' | 'success';
+
+/** Same outcome labels used for Apprise alerts and heartbeat pings. */
+export function classifySyncResult(result: SyncResult): NotificationType {
+  const failed =
+    result.errors.length > 0 || result.budgets.some((budget) => budget.status === 'failure');
+  const partial = result.budgets.some((budget) => budget.status === 'partial');
+  if (failed) {
+    return 'failure';
+  }
+  if (partial) {
+    return 'warning';
+  }
+  return 'success';
+}
+
 const titles: Record<NotificationType, string> = {
   failure: 'Actual Auto Sync failed',
   warning: 'Actual Auto Sync completed with warnings',
@@ -50,9 +65,9 @@ export async function notifySyncResult(result: SyncResult): Promise<void> {
   if (!env.NOTIFICATION_URL) {
     return;
   }
-  const failed =
-    result.errors.length > 0 || result.budgets.some((budget) => budget.status === 'failure');
-  const partial = result.budgets.some((budget) => budget.status === 'partial');
+  const type = classifySyncResult(result);
+  const failed = type === 'failure';
+  const partial = type === 'warning';
   const newTransactions = result.budgets.reduce(
     (total, budget) => total + (budget.newUncategorizedTransactions ?? 0),
     0,
@@ -65,12 +80,6 @@ export async function notifySyncResult(result: SyncResult): Promise<void> {
     return;
   }
 
-  let type: NotificationType = 'success';
-  if (failed) {
-    type = 'failure';
-  } else if (partial) {
-    type = 'warning';
-  }
   await deliverNotification(
     env.NOTIFICATION_URL,
     notificationPayload(result, type, newTransactions),

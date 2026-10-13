@@ -101,6 +101,18 @@ export const notificationTimeoutSchema = z.coerce
   .max(300_000)
   .default(10_000);
 
+/** Optional HTTP(S) endpoint for a vendor-neutral heartbeat ping. */
+export const heartbeatUrlSchema = notificationUrlSchema;
+/** `GET` by default. `POST` is allowed and sends no body. */
+export const heartbeatMethodSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .pipe(z.enum(['GET', 'POST']))
+  .default('GET');
+/** Same bounds as notification delivery. */
+export const heartbeatTimeoutSchema = notificationTimeoutSchema;
+
 /**
  * Default to info
  * @default "info"
@@ -177,6 +189,11 @@ export const env = createEnv({
     NOTIFY_ON_SUCCESS: await getConfiguration('NOTIFY_ON_SUCCESS'),
     NOTIFY_ON_NEW_UNCATEGORIZED: await getConfiguration('NOTIFY_ON_NEW_UNCATEGORIZED'),
     NOTIFICATION_TIMEOUT_MS: await getConfiguration('NOTIFICATION_TIMEOUT_MS'),
+    HEARTBEAT_URL: await getConfiguration('HEARTBEAT_URL'),
+    HEARTBEAT_FAILURE_URL: await getConfiguration('HEARTBEAT_FAILURE_URL'),
+    HEARTBEAT_START_URL: await getConfiguration('HEARTBEAT_START_URL'),
+    HEARTBEAT_METHOD: await getConfiguration('HEARTBEAT_METHOD'),
+    HEARTBEAT_TIMEOUT_MS: await getConfiguration('HEARTBEAT_TIMEOUT_MS'),
     TIMEZONE: await getConfiguration('TIMEZONE'),
   },
 
@@ -195,6 +212,11 @@ export const env = createEnv({
     NOTIFY_ON_SUCCESS: notifyOnSuccessSchema,
     NOTIFY_ON_NEW_UNCATEGORIZED: notifyOnNewUncategorizedSchema,
     NOTIFICATION_TIMEOUT_MS: notificationTimeoutSchema,
+    HEARTBEAT_URL: heartbeatUrlSchema,
+    HEARTBEAT_FAILURE_URL: heartbeatUrlSchema,
+    HEARTBEAT_START_URL: heartbeatUrlSchema,
+    HEARTBEAT_METHOD: heartbeatMethodSchema,
+    HEARTBEAT_TIMEOUT_MS: heartbeatTimeoutSchema,
     TIMEZONE: timezoneSchema,
   },
 });

@@ -13,6 +13,7 @@ import {
 import cronstrue from 'cronstrue';
 
 import { env } from './env.js';
+import { pingHeartbeatResult, pingHeartbeatStart } from './heartbeat.js';
 import { isVerbose, logger } from './logger.js';
 import { notifySyncResult, type BudgetSyncResult, type SyncResult } from './notifications.js';
 import {
@@ -483,6 +484,7 @@ async function shutdownApi() {
 /** Entry point for one service run: init, per-budget sync cycle, and guaranteed shutdown. */
 export const sync = async () => {
   logger.info('Starting service...');
+  await pingHeartbeatStart();
   const result: SyncResult = { budgets: [], errors: [] };
   try {
     await runSyncCycle(result);
@@ -494,5 +496,6 @@ export const sync = async () => {
       result.errors.push('Actual API shutdown failed. Check service logs.');
     }
     await notifySyncResult(result);
+    await pingHeartbeatResult(result);
   }
 };

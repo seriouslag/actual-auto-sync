@@ -16,6 +16,9 @@ import {
   skipFailedAccountsSchema,
   serverUrlSchema,
   timezoneSchema,
+  heartbeatUrlSchema,
+  heartbeatMethodSchema,
+  heartbeatTimeoutSchema,
 } from '../env.js';
 
 // Mock dotenv and pino to avoid side effects
@@ -372,6 +375,30 @@ describe('Notification configuration', () => {
     expect(notificationTimeoutSchema.parse('5000')).toBe(5000);
     for (const value of ['0', '-1', '1.5', 'invalid', '300001']) {
       expect(() => notificationTimeoutSchema.parse(value)).toThrow();
+    }
+  });
+});
+
+describe('Heartbeat configuration', () => {
+  it('accepts an optional http(s) URL', () => {
+    expect(heartbeatUrlSchema.parse(undefined)).toBeUndefined();
+    expect(heartbeatUrlSchema.parse(' https://hc-ping.com/uuid ')).toBe('https://hc-ping.com/uuid');
+    expect(() => heartbeatUrlSchema.parse('mailto://user@example.com')).toThrow();
+    expect(() => heartbeatUrlSchema.parse('invalid')).toThrow();
+  });
+
+  it('defaults the method to GET and allows POST', () => {
+    expect(heartbeatMethodSchema.parse(undefined)).toBe('GET');
+    expect(heartbeatMethodSchema.parse('post')).toBe('POST');
+    expect(heartbeatMethodSchema.parse(' GET ')).toBe('GET');
+    expect(() => heartbeatMethodSchema.parse('PUT')).toThrow();
+  });
+
+  it('defaults the timeout to 10000ms within the notification bounds', () => {
+    expect(heartbeatTimeoutSchema.parse(undefined)).toBe(10_000);
+    expect(heartbeatTimeoutSchema.parse('5000')).toBe(5000);
+    for (const value of ['0', '-1', '1.5', 'invalid', '300001']) {
+      expect(() => heartbeatTimeoutSchema.parse(value)).toThrow();
     }
   });
 });

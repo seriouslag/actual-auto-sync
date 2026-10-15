@@ -19,19 +19,11 @@ jobs:
   watchgoose:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      WATCHGOOSE_API_KEY: ${{ secrets.WATCHGOOSE_API_KEY }}
-      WATCHGOOSE_API_URL: ${{ vars.WATCHGOOSE_API_URL }}
 
     steps:
       - uses: actions/checkout@v7
-
-      - name: Require Watchgoose API key
-        run: |
-          if [ -z "$WATCHGOOSE_API_KEY" ]; then
-            echo "::error::Set the WATCHGOOSE_API_KEY Actions secret to a read-write Watchgoose project key."
-            exit 1
-          fi
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -60,4 +52,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run Watchgoose integration test
-        run: pnpm test:watchgoose
+        env:
+          WATCHGOOSE_API_KEY: ${{ secrets.WATCHGOOSE_API_KEY }}
+          WATCHGOOSE_API_URL: ${{ vars.WATCHGOOSE_API_URL }}
+        run: |
+          if [ -z "$WATCHGOOSE_API_KEY" ]; then
+            echo "::error::Set the WATCHGOOSE_API_KEY Actions secret to a read-write Watchgoose project key."
+            exit 1
+          fi
+          pnpm test:watchgoose

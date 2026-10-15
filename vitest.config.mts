@@ -10,6 +10,8 @@ export default defineConfig({
       '**/dist/**',
       // E2E tests run separately via pnpm test:e2e
       'src/__tests__/e2e/**',
+      // Live Watchgoose test runs via pnpm test:watchgoose, outside pull-request and main CI
+      'src/__tests__/watchgoose.integration.test.ts',
     ],
   },
 });

@@ -403,11 +403,14 @@ pnpm test             # Run unit tests (Vitest, watch mode)
 pnpm test:coverage    # Run unit tests once with coverage
 pnpm test:e2e         # Run e2e tests (needs an Actual server on localhost:5006)
 pnpm test:e2e:docker  # Run e2e tests in Docker (spins up the server automatically)
+pnpm test:watchgoose  # Live Watchgoose heartbeat test (needs WATCHGOOSE_API_KEY; not part of CI)
 pnpm build            # Type-check / compile with tsc
 pnpm lint             # Lint with oxlint
 pnpm format           # Format with oxfmt
 pnpm check            # lint + format check + build
 ```
+
+`pnpm test:watchgoose` creates a temporary Watchgoose check with no alert channels, drives the heartbeat client through start, a full success, and a partial run, then deletes the check. Set `WATCHGOOSE_API_KEY` to a read-write project key. `WATCHGOOSE_API_URL` is optional and defaults to `https://watchgoose.com`. GitHub Actions runs this every Monday at 16:17 UTC from the `WATCHGOOSE_API_KEY` secret and the optional `WATCHGOOSE_API_URL` variable. You can also run the "Watchgoose integration" workflow by hand. Pull requests and the main deploy workflow do not run it.
 
 ### Running with Docker (build locally)
 

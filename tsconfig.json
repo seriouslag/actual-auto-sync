@@ -10,6 +10,11 @@
     "typeRoots": ["./node_modules/@types", "./node_modules/@actual-app/api/@types"],
     "types": ["node"]
   },
-  "include": ["src/**/*", "vitest.config.mts", "vitest.config.e2e.mts"],
+  "include": [
+    "src/**/*",
+    "vitest.config.mts",
+    "vitest.config.e2e.mts",
+    "vitest.config.watchgoose.mts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

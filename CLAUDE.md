@@ -35,6 +35,9 @@ pnpm test:e2e
 # Run e2e tests with Docker (spins up server automatically)
 pnpm test:e2e:docker
 
+# Live Watchgoose heartbeat test (needs WATCHGOOSE_API_KEY; not part of CI)
+pnpm test:watchgoose
+
 # Type check
 pnpm build
 

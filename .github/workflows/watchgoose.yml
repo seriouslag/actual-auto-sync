@@ -1,0 +1,63 @@
+name: Watchgoose integration
+
+# Live heartbeat check against Watchgoose. Kept off pull-request and main CI
+# because it needs a read-write project key and it creates a real check.
+on:
+  schedule:
+    # Monday 16:17 UTC. GitHub's scheduler can slip; this test does not need a tight clock.
+    - cron: '17 16 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: watchgoose-integration
+  cancel-in-progress: false
+
+jobs:
+  watchgoose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24.18.1'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Watchgoose integration test
+        env:
+          WATCHGOOSE_API_KEY: ${{ secrets.WATCHGOOSE_API_KEY }}
+          WATCHGOOSE_API_URL: ${{ vars.WATCHGOOSE_API_URL }}
+        run: |
+          if [ -z "$WATCHGOOSE_API_KEY" ]; then
+            echo "::error::Set the WATCHGOOSE_API_KEY Actions secret to a read-write Watchgoose project key."
+            exit 1
+          fi
+          pnpm test:watchgoose

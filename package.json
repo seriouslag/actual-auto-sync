@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@types/luxon": "^3.7.6",
-    "@types/node": "^26.6.6",
+    "@types/node": "^24.19.2",
     "@vitest/coverage-v8": "^5.1.0",
     "eslint-plugin-unused-imports": "^4.4.1",
     "lefthook": "^2.2.2",
@@ -51,6 +51,9 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
+  },
+  "engines": {
+    "node": "^24"
   },
   "packageManager": "pnpm@11.28.11"
 }

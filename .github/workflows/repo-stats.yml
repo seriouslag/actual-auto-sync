@@ -72,9 +72,10 @@ jobs:
             } catch (error) {
               if (error.status === 403) {
                 core.setFailed(
-                  'Listing stargazers was forbidden. REPO_STATS_TOKEN must be a CLASSIC personal ' +
-                    'access token with the `public_repo` scope; fine-grained tokens are rejected ' +
-                    `by this endpoint. GitHub said: ${error.message}`,
+                  'Listing stargazers was forbidden (HTTP 403). Unless this is a rate limit, ' +
+                    'REPO_STATS_TOKEN should be a CLASSIC personal access token with the `public_repo` ' +
+                    'scope: since July 2026 this endpoint has rejected fine-grained tokens even with ' +
+                    `Metadata (read), despite the docs. GitHub said: ${error.message}`,
                 );
                 return;
               }

@@ -367,7 +367,7 @@ docker build --build-arg APP_UID=1001 --build-arg APP_GID=1001 -t actual-auto-sy
 
 ### Prerequisites
 
-- Node.js >= 22 (CI and the Docker images use Node 24, matching Actual Budget; the exact version is pinned in the Dockerfiles and workflows)
+- Node.js 24.x, the major Actual Budget uses (`engines.node: ^24`; CI and the Docker images pin an exact 24.x release in the Dockerfiles and workflows)
 - pnpm >= 11 (the exact version is pinned by `packageManager` in `package.json`; run `corepack enable` to use it)
 
 ### Setup local (non-docker)

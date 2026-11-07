@@ -44,9 +44,14 @@
       "allowedVersions": "<12"
     },
     {
-      "description": "Keep the Debian image and CI on the Node.js version Actual Budget uses (its .nvmrc). Bump this when Actual moves. The Alpine image installs Alpine's nodejs package unpinned (as Actual does): it currently provides 24.22.1 and receives Alpine's security patch updates within the branch; exact apk pins break builds once Alpine replaces the package.",
+      "description": "Follow the Node.js major that Actual Budget uses (its .nvmrc, currently v24) and take the latest release in that line for the Debian images and CI. Do not move to a newer major (e.g. 26) until Actual does; then bump this major and the @types/node rule below together. The Alpine image installs Alpine's nodejs package unpinned (as Actual does), which tracks the same major within the Alpine branch; exact apk pins break builds once Alpine replaces the package.",
       "matchDepNames": ["node"],
-      "allowedVersions": "/^24\\.22\\.1(-|$)/"
+      "allowedVersions": "/^24\\./"
+    },
+    {
+      "description": "Keep @types/node on the runtime major (see the node rule above) so TypeScript rejects APIs that do not exist on Node 24.",
+      "matchPackageNames": ["@types/node"],
+      "allowedVersions": "/^24\\./"
     }
   ]
 }

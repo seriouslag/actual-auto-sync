@@ -18,7 +18,8 @@ jobs:
         uses: actions/github-script@v9
         with:
           # Listing stargazers is restricted to repo admins/collaborators as of
-          # July 2026; github-actions[bot] is neither, so a PAT is required.
+          # July 2026; github-actions[bot] is neither, so a CLASSIC PAT (public_repo
+          # scope) is required. Fine-grained PATs 403 on this endpoint.
           github-token: ${{ secrets.REPO_STATS_TOKEN }}
           script: |
             const owner = context.repo.owner;
@@ -55,16 +56,28 @@ jobs:
             const repository = await github.rest.repos.get({ owner, repo });
             const stargazers = [];
 
-            for await (const response of github.paginate.iterator(
-              github.rest.activity.listStargazersForRepo,
-              {
-                headers: { accept: 'application/vnd.github.star+json' },
-                owner,
-                per_page: 100,
-                repo,
-              },
-            )) {
-              stargazers.push(...response.data);
+            try {
+              for await (const response of github.paginate.iterator(
+                github.rest.activity.listStargazersForRepo,
+                {
+                  headers: { accept: 'application/vnd.github.star+json' },
+                  owner,
+                  per_page: 100,
+                  repo,
+                },
+              )) {
+                stargazers.push(...response.data);
+              }
+            } catch (error) {
+              if (error.status === 403) {
+                core.setFailed(
+                  'Listing stargazers was forbidden. REPO_STATS_TOKEN must be a CLASSIC personal ' +
+                    'access token with the `public_repo` scope; fine-grained tokens are rejected ' +
+                    `by this endpoint. GitHub said: ${error.message}`,
+                );
+                return;
+              }
+              throw error;
             }
 
             const newStargazersPreviousDay = stargazers

@@ -15,6 +15,9 @@ import {
   syncAllAccounts,
 } from '../utils.js';
 
+// `runBankSync` resolves with the reconciled transaction ids; an idle sync has none.
+const EMPTY_SYNC_RESPONSE = { newTransactions: [], matchedTransactions: [], updatedAccounts: [] };
+
 // Mock external dependencies
 vi.mock('node:fs/promises', () => ({
   mkdir: vi.fn(),
@@ -133,7 +136,7 @@ describe('utils.ts functions', () => {
     });
 
     it('should successfully sync all accounts and sync budget to server', async () => {
-      vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(runBankSync).mockResolvedValue(EMPTY_SYNC_RESPONSE);
       vi.mocked(syncBudget).mockResolvedValue(undefined);
 
       await syncAllAccounts(fakeApi);
@@ -167,7 +170,7 @@ describe('utils.ts functions', () => {
 
     it('should handle errors during budget sync to server', async () => {
       const error = new Error('Budget sync failed');
-      vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(runBankSync).mockResolvedValue(EMPTY_SYNC_RESPONSE);
       vi.mocked(syncBudget).mockRejectedValue(error);
 
       await expect(syncAllAccounts(fakeApi)).rejects.toThrow('Budget sync failed');
@@ -177,7 +180,7 @@ describe('utils.ts functions', () => {
 
     it('should continue syncing budget when account balance CRDT sync has errors', async () => {
       const error = new Error('DB read failed');
-      vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(runBankSync).mockResolvedValue(EMPTY_SYNC_RESPONSE);
       vi.mocked(mockDb.getAccounts).mockRejectedValue(error);
       vi.mocked(syncBudget).mockResolvedValue(undefined);
 
@@ -206,7 +209,7 @@ describe('utils.ts functions', () => {
       });
 
       it('syncs each non-closed account individually', async () => {
-        vi.mocked(runBankSync).mockResolvedValue(undefined);
+        vi.mocked(runBankSync).mockResolvedValue(EMPTY_SYNC_RESPONSE);
 
         await syncAllAccounts(fakeApi);
 
@@ -221,7 +224,7 @@ describe('utils.ts functions', () => {
         const error = new Error('internal error');
         vi.mocked(runBankSync)
           .mockRejectedValueOnce(error) // acc-1 fails
-          .mockResolvedValue(undefined); // acc-2 succeeds
+          .mockResolvedValue(EMPTY_SYNC_RESPONSE); // acc-2 succeeds
 
         await syncAllAccounts(fakeApi);
 
@@ -440,7 +443,7 @@ describe('utils.ts functions', () => {
       vi.mocked(shutdown).mockResolvedValue(undefined as never);
       vi.mocked(downloadBudget).mockResolvedValue(undefined);
       vi.mocked(mkdir).mockResolvedValue(undefined);
-      vi.mocked(runBankSync).mockResolvedValue(undefined);
+      vi.mocked(runBankSync).mockResolvedValue(EMPTY_SYNC_RESPONSE);
       vi.mocked(syncBudget).mockResolvedValue(undefined);
       vi.mocked(mockDb.getAccounts).mockResolvedValue([]);
       vi.mocked(mockDb.update).mockResolvedValue(undefined);

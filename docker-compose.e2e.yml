@@ -37,6 +37,11 @@ services:
       - '5006:5006'
     volumes:
       - actual-data:/data
+    environment:
+      # actual-server 26.11+ blocks SimpleFIN requests to private IPs (SSRF
+      # guard). The mock SimpleFIN server lives on the compose network, so allow
+      # Docker's default private address pools.
+      - ACTUAL_SIMPLEFIN_ALLOWED_NETWORKS=172.16.0.0/12,192.168.0.0/16,10.0.0.0/8
     healthcheck:
       test: ['CMD-SHELL', 'node src/scripts/health-check.js']
       interval: 5s

@@ -12,6 +12,9 @@ import { env } from '../env.js';
 import { logger } from '../logger.js';
 import { sync } from '../utils.js';
 
+// `runBankSync` resolves with the reconciled transaction ids; an idle sync has none.
+const EMPTY_SYNC_RESPONSE = { newTransactions: [], matchedTransactions: [], updatedAccounts: [] };
+
 vi.mock('@actual-app/api', () => ({
   init: vi.fn(),
   shutdown: vi.fn(),
@@ -90,7 +93,7 @@ describe('heartbeat monitoring', () => {
     vi.stubGlobal('fetch', fetchMock);
     vi.mocked(init).mockResolvedValue({ db } as unknown as Awaited<ReturnType<typeof init>>);
     vi.mocked(downloadBudget).mockResolvedValue(undefined);
-    vi.mocked(runBankSync).mockResolvedValue(undefined);
+    vi.mocked(runBankSync).mockResolvedValue(EMPTY_SYNC_RESPONSE);
     vi.mocked(syncBudget).mockResolvedValue(undefined);
     vi.mocked(shutdown).mockResolvedValue(undefined as never);
     vi.mocked(getAccounts).mockResolvedValue([]);

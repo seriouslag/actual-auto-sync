@@ -18,7 +18,8 @@ jobs:
         uses: actions/github-script@v9
         with:
           # Listing stargazers is restricted to repo admins/collaborators as of
-          # July 2026; github-actions[bot] is neither, so a PAT is required.
+          # July 2026; github-actions[bot] is neither, so a CLASSIC PAT (public_repo
+          # scope) is required. Fine-grained PATs 403 on this endpoint.
           github-token: ${{ secrets.REPO_STATS_TOKEN }}
           script: |
             const owner = context.repo.owner;
@@ -44,27 +45,41 @@ jobs:
 
             const now = new Date();
             const todayParts = getParts(now);
-            const todayUtcMidnight = new Date(
-              `${todayParts.year}-${todayParts.month}-${todayParts.day}T00:00:00Z`,
-            );
-            const previousDayUtcMidnight = new Date(
-              todayUtcMidnight.getTime() - 24 * 60 * 60 * 1000,
-            );
-            const previousDayKey = getLocalDateKey(previousDayUtcMidnight);
+            // Calendar arithmetic on the local date. Do not round-trip through
+            // getLocalDateKey: UTC midnight is the previous evening in a
+            // UTC-negative zone, which would report the day before yesterday.
+            const previousDayKey = new Date(
+              Date.UTC(Number(todayParts.year), Number(todayParts.month) - 1, Number(todayParts.day) - 1),
+            )
+              .toISOString()
+              .slice(0, 10);
 
             const repository = await github.rest.repos.get({ owner, repo });
             const stargazers = [];
 
-            for await (const response of github.paginate.iterator(
-              github.rest.activity.listStargazersForRepo,
-              {
-                headers: { accept: 'application/vnd.github.star+json' },
-                owner,
-                per_page: 100,
-                repo,
-              },
-            )) {
-              stargazers.push(...response.data);
+            try {
+              for await (const response of github.paginate.iterator(
+                github.rest.activity.listStargazersForRepo,
+                {
+                  headers: { accept: 'application/vnd.github.star+json' },
+                  owner,
+                  per_page: 100,
+                  repo,
+                },
+              )) {
+                stargazers.push(...response.data);
+              }
+            } catch (error) {
+              if (error.status === 403) {
+                core.setFailed(
+                  'Listing stargazers was forbidden (HTTP 403). Unless this is a rate limit, ' +
+                    'REPO_STATS_TOKEN should be a CLASSIC personal access token with the `public_repo` ' +
+                    'scope: since July 2026 this endpoint has rejected fine-grained tokens even with ' +
+                    `Metadata (read), despite the docs. GitHub said: ${error.message}`,
+                );
+                return;
+              }
+              throw error;
             }
 
             const newStargazersPreviousDay = stargazers

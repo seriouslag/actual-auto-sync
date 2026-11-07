@@ -51,7 +51,7 @@
     {
       "description": "Keep @types/node on the runtime major (see the node rule above) so TypeScript rejects APIs that do not exist on Node 24.",
       "matchPackageNames": ["@types/node"],
-      "allowedVersions": "<25"
+      "allowedVersions": "/^24\\./"
     }
   ]
 }

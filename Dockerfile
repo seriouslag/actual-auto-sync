@@ -5,7 +5,7 @@
 #
 # Base image shared by the build and runtime stages. It holds no project files,
 # so the runtime image carries only what the final stage copies in.
-FROM node:24.22.1-bookworm-slim AS base
+FROM node:24.22.2-bookworm-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /app

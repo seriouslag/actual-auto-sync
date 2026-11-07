@@ -45,13 +45,14 @@ jobs:
 
             const now = new Date();
             const todayParts = getParts(now);
-            const todayUtcMidnight = new Date(
-              `${todayParts.year}-${todayParts.month}-${todayParts.day}T00:00:00Z`,
-            );
-            const previousDayUtcMidnight = new Date(
-              todayUtcMidnight.getTime() - 24 * 60 * 60 * 1000,
-            );
-            const previousDayKey = getLocalDateKey(previousDayUtcMidnight);
+            // Calendar arithmetic on the local date. Do not round-trip through
+            // getLocalDateKey: UTC midnight is the previous evening in a
+            // UTC-negative zone, which would report the day before yesterday.
+            const previousDayKey = new Date(
+              Date.UTC(Number(todayParts.year), Number(todayParts.month) - 1, Number(todayParts.day) - 1),
+            )
+              .toISOString()
+              .slice(0, 10);
 
             const repository = await github.rest.repos.get({ owner, repo });
             const stargazers = [];
